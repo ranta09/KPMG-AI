@@ -1,26 +1,565 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-kpmg-blue: #00338D;
+  --color-kpmg-light: #00A3E0;
+  --color-kpmg-dark: #001f5c;
+  --color-card: rgba(255, 255, 255, 0.9);
+  --color-card-hover: rgba(255, 255, 255, 1);
+  --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #F8FAFC;
+  --foreground: #0f172a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), sans-serif;
+  overflow-x: hidden;
+}
+
+/* Global Interactive Cursor */
+button,
+a,
+input[type="submit"],
+input[type="button"],
+.interactive {
+  cursor: pointer !important;
+}
+
+/* Base custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(172, 234, 255, 0.4);
+}
+
+/* Smooth selection */
+::selection {
+  background: var(--color-kpmg-light);
+  color: #fff;
+}
+
+/* Landing page light utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+}
+
+.animated-gradient {
+  background: linear-gradient(-45deg, #F8FAFC, #F1F5F9, #ffffff, #e2e8f0);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@layer utilities {
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+
+  .hover\:pause:hover {
+    animation-play-state: paused;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DARK THEME — Applied to all authenticated dashboard routes
+   ═══════════════════════════════════════════════════════════════ */
+
+.dark-theme {
+  /* ── Carousel / Interaction Variables (as specified) ── */
+  --contactcarousel-controls-radius: 50%;
+  --contactcarousel-icon-color: #fff;
+  --contactcarousel-controls-border: 1px solid #fff;
+  --contactcarousel-controls-border-hover: 1px solid #aceaff;
+  --contactcarousel-controls-bg-hover: rgba(12, 35, 60, 0.322);
+  --contactcarousel-icon-color-hover: #aceaff;
+  --contactcarousel-controls-border-active: 1px solid #76d2ff;
+  --contactcarousel-controls-bg-active: #0c233c29;
+  --contactcarousel-icon-color-active: #76d2ff;
+  --contactcarousel-controls-border-disabled: 1px solid #ffffff3d;
+  --contactcarousel-controls-bg-disabled: transparent;
+  --contactcarousel-icon-color-disabled: #ffffff3d;
+  --contactcarousel-indicator-color-active: #fff;
+  --contactcarousel-indicator-color: hsla(0, 0%, 100%, 0.25);
+  --contactcarousel-indicator-color-hover: #aceaff;
+  --contactcarousel-indicator-focus: #f5f6fa;
+
+  /* ── Semantic Dark Theme Tokens ── */
+  --dt-bg-root: #050e1a;
+  --dt-bg-primary: #081428;
+  --dt-bg-card: rgba(12, 35, 60, 0.70);
+  --dt-bg-card-solid: #0c2340;
+  --dt-bg-card-hover: rgba(12, 35, 60, 0.95);
+  --dt-bg-input: rgba(12, 35, 60, 0.60);
+  --dt-bg-hover: var(--contactcarousel-controls-bg-hover);
+  --dt-bg-active: var(--contactcarousel-controls-bg-active);
+
+  --dt-border: rgba(255, 255, 255, 0.10);
+  --dt-border-hover: rgba(172, 234, 255, 0.35);
+  --dt-border-accent: rgba(118, 210, 255, 0.50);
+
+  --dt-text-primary: #ffffff;
+  --dt-text-secondary: rgba(255, 255, 255, 0.65);
+  --dt-text-muted: rgba(255, 255, 255, 0.35);
+  --dt-text-hover: var(--contactcarousel-icon-color-hover);
+  /* #aceaff */
+  --dt-text-active: var(--contactcarousel-icon-color-active);
+  /* #76d2ff */
+  --dt-text-disabled: var(--contactcarousel-icon-color-disabled);
+  /* #ffffff3d */
+
+  --dt-accent: #aceaff;
+  --dt-accent-deep: #76d2ff;
+  --dt-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+
+  /* Root background */
+  background-color: var(--dt-bg-root);
+  color: var(--dt-text-primary);
+}
+
+/* ── Scrollbar inside dark theme ── */
+.dark-theme ::-webkit-scrollbar-track {
+  background: var(--dt-bg-primary);
+}
+
+.dark-theme ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dark-theme ::-webkit-scrollbar-thumb:hover {
+  background: rgba(172, 234, 255, 0.3);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BACKGROUND OVERRIDES
+──────────────────────────────────────────────────────────────── */
+.dark-theme .bg-white,
+.dark-theme .bg-slate-50 {
+  background-color: var(--dt-bg-card-solid) !important;
+}
+
+.dark-theme .bg-slate-100,
+.dark-theme .bg-slate-200 {
+  background-color: rgba(12, 35, 60, 0.50) !important;
+}
+
+.dark-theme .bg-\[\#F8FAFC\] {
+  background-color: var(--dt-bg-primary) !important;
+}
+
+/* Gradient headers */
+.dark-theme .bg-gradient-to-r.from-slate-900.to-\[\#00338D\] {
+  background: linear-gradient(to right, #050e1a, #0c2340) !important;
+}
+
+.dark-theme .bg-gradient-to-r.from-slate-900 {
+  background: linear-gradient(to right, #050e1a, #0a1e38) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TEXT OVERRIDES
+──────────────────────────────────────────────────────────────── */
+.dark-theme .text-slate-900,
+.dark-theme .text-slate-800 {
+  color: var(--dt-text-primary) !important;
+}
+
+.dark-theme .text-slate-700,
+.dark-theme .text-slate-600 {
+  color: var(--dt-text-secondary) !important;
+}
+
+.dark-theme .text-slate-500,
+.dark-theme .text-slate-400 {
+  color: var(--dt-text-muted) !important;
+}
+
+.dark-theme .text-slate-300 {
+  color: rgba(255, 255, 255, 0.20) !important;
+}
+
+/* Accent text */
+.dark-theme .text-\[\#00338D\] {
+  color: var(--dt-accent) !important;
+}
+
+.dark-theme .text-blue-700,
+.dark-theme .text-blue-600 {
+  color: var(--dt-accent) !important;
+}
+
+/* Emerald / success stays readable */
+.dark-theme .text-emerald-600,
+.dark-theme .text-emerald-700 {
+  color: #4ade80 !important;
+}
+
+.dark-theme .text-amber-600,
+.dark-theme .text-amber-700 {
+  color: #fbbf24 !important;
+}
+
+.dark-theme .text-red-400,
+.dark-theme .text-red-500 {
+  color: #f87171 !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BORDER OVERRIDES
+──────────────────────────────────────────────────────────────── */
+.dark-theme .border-slate-200,
+.dark-theme .border-slate-300,
+.dark-theme .border-slate-100 {
+  border-color: var(--dt-border) !important;
+}
+
+.dark-theme .border-slate-400 {
+  border-color: rgba(255, 255, 255, 0.20) !important;
+}
+
+.dark-theme .border-\[\#00338D\] {
+  border-color: var(--dt-accent) !important;
+}
+
+.dark-theme .border-blue-200 {
+  border-color: rgba(172, 234, 255, 0.25) !important;
+}
+
+.dark-theme .border-emerald-200 {
+  border-color: rgba(74, 222, 128, 0.25) !important;
+}
+
+.dark-theme .border-amber-200 {
+  border-color: rgba(251, 191, 36, 0.25) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   CARD & CONTAINER OVERRIDES
+──────────────────────────────────────────────────────────────── */
+.dark-theme .rounded-2xl.border.border-slate-200,
+.dark-theme .rounded-xl.border.border-slate-200,
+.dark-theme .rounded-2xl.shadow-sm {
+  background-color: var(--dt-bg-card-solid) !important;
+  border-color: var(--dt-border) !important;
+  box-shadow: var(--dt-shadow) !important;
+}
+
+/* Hover on cards */
+.dark-theme .hover\:border-\[\#00338D\]\/30:hover {
+  border-color: rgba(172, 234, 255, 0.30) !important;
+}
+
+.dark-theme .hover\:bg-slate-50:hover,
+.dark-theme .hover\:bg-slate-50\/70:hover {
+  background-color: var(--dt-bg-hover) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TABLE OVERRIDES
+──────────────────────────────────────────────────────────────── */
+.dark-theme thead,
+.dark-theme .bg-slate-50.border-b {
+  background-color: rgba(5, 14, 26, 0.80) !important;
+  border-color: var(--dt-border) !important;
+}
+
+.dark-theme tbody tr {
+  border-color: var(--dt-border) !important;
+}
+
+.dark-theme table {
+  color: var(--dt-text-secondary) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   FORM INPUTS
+──────────────────────────────────────────────────────────────── */
+.dark-theme input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.dark-theme textarea,
+.dark-theme select {
+  background-color: var(--dt-bg-input) !important;
+  border-color: var(--dt-border) !important;
+  color: var(--dt-text-primary) !important;
+}
+
+.dark-theme input::placeholder,
+.dark-theme textarea::placeholder {
+  color: var(--dt-text-muted) !important;
+}
+
+.dark-theme input:focus,
+.dark-theme textarea:focus,
+.dark-theme select:focus {
+  border-color: var(--dt-accent) !important;
+  box-shadow: 0 0 0 2px rgba(172, 234, 255, 0.15) !important;
+  outline: none !important;
+}
+
+.dark-theme select option {
+  background-color: #0c2340 !important;
+  color: #fff !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   BUTTONS
+──────────────────────────────────────────────────────────────── */
+/* Primary KPMG Blue button → Dark accent */
+.dark-theme .bg-\[\#00338D\] {
+  background-color: rgba(12, 35, 60, 0.90) !important;
+  border: 1px solid var(--dt-accent) !important;
+  color: var(--dt-accent) !important;
+}
+
+.dark-theme .bg-\[\#00338D\]:hover,
+.dark-theme .hover\:bg-\[\#00266e\]:hover {
+  background-color: var(--contactcarousel-controls-bg-hover) !important;
+  border-color: var(--dt-accent) !important;
+  color: var(--dt-text-hover) !important;
+}
+
+/* White buttons → transparent dark */
+.dark-theme .bg-white.text-\[\#00338D\] {
+  background-color: rgba(172, 234, 255, 0.10) !important;
+  color: var(--dt-accent) !important;
+  border-color: rgba(172, 234, 255, 0.30) !important;
+}
+
+.dark-theme .bg-white.text-\[\#00338D\]:hover {
+  background-color: rgba(172, 234, 255, 0.18) !important;
+  color: var(--dt-text-hover) !important;
+}
+
+/* Outline secondary buttons */
+.dark-theme button.border.border-slate-200,
+.dark-theme button.border.border-slate-300 {
+  background-color: transparent !important;
+  border-color: var(--dt-border) !important;
+  color: var(--dt-text-secondary) !important;
+}
+
+.dark-theme button.border.border-slate-200:hover,
+.dark-theme button.border.border-slate-300:hover {
+  background-color: var(--dt-bg-hover) !important;
+  border-color: var(--dt-border-hover) !important;
+  color: var(--dt-text-hover) !important;
+}
+
+/* Emerald / approval buttons */
+.dark-theme .bg-emerald-600 {
+  background-color: rgba(16, 85, 50, 0.90) !important;
+  border: 1px solid rgba(74, 222, 128, 0.40) !important;
+  color: #4ade80 !important;
+}
+
+.dark-theme .bg-emerald-600:hover,
+.dark-theme .hover\:bg-emerald-700:hover {
+  background-color: rgba(16, 85, 50, 1) !important;
+  border-color: rgba(74, 222, 128, 0.65) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   STATUS BADGES
+──────────────────────────────────────────────────────────────── */
+.dark-theme .bg-blue-50 {
+  background-color: rgba(14, 50, 90, 0.60) !important;
+}
+
+.dark-theme .bg-emerald-50 {
+  background-color: rgba(16, 60, 40, 0.60) !important;
+}
+
+.dark-theme .bg-amber-50 {
+  background-color: rgba(70, 50, 10, 0.60) !important;
+}
+
+.dark-theme .bg-slate-100 {
+  background-color: rgba(12, 35, 60, 0.45) !important;
+}
+
+.dark-theme .bg-purple-50 {
+  background-color: rgba(50, 20, 80, 0.60) !important;
+}
+
+.dark-theme .text-purple-700 {
+  color: #c084fc !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SIDEBAR
+──────────────────────────────────────────────────────────────── */
+.dark-theme nav,
+.dark-theme aside {
+  background-color: #060f1c !important;
+  border-color: var(--dt-border) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DIVIDERS
+──────────────────────────────────────────────────────────────── */
+.dark-theme .divide-y>*+* {
+  border-color: var(--dt-border) !important;
+}
+
+.dark-theme hr,
+.dark-theme .border-b {
+  border-color: var(--dt-border) !important;
+}
+
+.dark-theme .border-t {
+  border-color: var(--dt-border) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   MODALS & OVERLAYS
+──────────────────────────────────────────────────────────────── */
+.dark-theme [class*="bg-slate-900/"] {
+  background-color: rgba(5, 14, 26, 0.85) !important;
+}
+
+/* Modal panels */
+.dark-theme .shadow-2xl.bg-white,
+.dark-theme .rounded-2xl.bg-white {
+  background-color: #0a1e35 !important;
+  border-color: var(--dt-border) !important;
+}
+
+/* Modal header gradient */
+.dark-theme .bg-gradient-to-r.from-slate-900.to-\[\#00338D\].text-white {
+  background: linear-gradient(to right, #050e1a, #091c35) !important;
+  border-bottom: 1px solid var(--dt-border) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   AI / CODE PANELS (already dark — keep but adjust)
+──────────────────────────────────────────────────────────────── */
+.dark-theme .bg-slate-900 {
+  background-color: #030b14 !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   TABS
+──────────────────────────────────────────────────────────────── */
+.dark-theme .border-b.border-slate-200.flex {
+  border-color: var(--dt-border) !important;
+}
+
+.dark-theme .border-\[\#00338D\].text-\[\#00338D\] {
+  border-color: var(--dt-accent) !important;
+  color: var(--dt-accent) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   LINK HOVER STATES
+──────────────────────────────────────────────────────────────── */
+.dark-theme a.hover\:underline {
+  color: var(--dt-accent) !important;
+}
+
+.dark-theme a:hover {
+  color: var(--dt-text-hover) !important;
+}
+
+.dark-theme a.text-\[\#00338D\] {
+  color: var(--dt-accent) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   FONT MONO (BRD IDs, version tags)
+──────────────────────────────────────────────────────────────── */
+.dark-theme .font-mono.text-\[\#00338D\] {
+  color: var(--dt-accent) !important;
+}
+
+.dark-theme .bg-slate-100.px-2 {
+  background-color: rgba(12, 35, 60, 0.60) !important;
+  color: var(--dt-text-secondary) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   KANBAN / PIPELINE CARDS
+──────────────────────────────────────────────────────────────── */
+.dark-theme .bg-slate-50.rounded {
+  background-color: rgba(12, 35, 60, 0.40) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   NEURAL NETWORK / CANVAS (keep transparent)
+──────────────────────────────────────────────────────────────── */
+.dark-theme canvas {
+  opacity: 0.7;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   CHATBOT
+──────────────────────────────────────────────────────────────── */
+.dark-theme .chatbot-panel {
+  background-color: #0a1e35 !important;
+  border-color: var(--dt-border) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   UTILITY — dark-aware glow for accent state
+──────────────────────────────────────────────────────────────── */
+.dark-theme .ring-2.ring-\[\#00338D\] {
+  --tw-ring-color: rgba(172, 234, 255, 0.35) !important;
+}
+
+.dark-theme .focus\:ring-\[\#00338D\]:focus {
+  --tw-ring-color: rgba(172, 234, 255, 0.25) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   ANIMATED BACKGROUND GEL / GLOW
+──────────────────────────────────────────────────────────────── */
+.dark-theme .fixed.top-0.right-0.w-\[800px\] {
+  background: radial-gradient(ellipse, rgba(172, 234, 255, 0.04), transparent) !important;
+}
+
+/* ── Dot decorations (header grids) ── */
+.dark-theme .grid .w-1\.5.h-1\.5.rounded-full.bg-white {
+  opacity: 0.08;
 }
