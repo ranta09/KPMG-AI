@@ -121,7 +121,7 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                     sapModule: form.subCategory,
                     uploadedFiles: fileNames,
                 },
-                sections: {} as never,
+                sections: {} as any,
             }],
         };
 
