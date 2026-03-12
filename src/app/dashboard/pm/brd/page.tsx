@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Search, Eye, Download, FileText, Clock, CheckCircle, AlertCircle, RotateCcw, Archive, Loader2, Filter, ChevronDown, ChevronRight, CornerDownRight, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, Download, FileText, Clock, CheckCircle, AlertCircle, RotateCcw, Archive, Loader2, Filter, ChevronDown, ChevronRight, CornerDownRight, Trash2, Code, Users, Rocket } from "lucide-react";
 import Link from "next/link";
+import { getLoggedInUser } from "@/lib/auth";
 import { useEffect } from "react";
 import { BRDRecord, BRDStatus, useBRDStore } from "@/lib/brdStore";
 import BRDCreateModal from "@/components/brd/BRDCreateModal";
@@ -11,19 +12,21 @@ import BRDCreateModal from "@/components/brd/BRDCreateModal";
 const STATUS_CONFIG: Record<BRDStatus, { bg: string; text: string; border: string; Icon: React.ElementType }> = {
     "Generating BRD": { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-300", Icon: Loader2 },
     "BRD Generated": { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-300", Icon: CheckCircle },
-    "Revision Required": { bg: "bg-red-100", text: "text-red-700", border: "border-red-300", Icon: RotateCcw },
+    "BRD Review": { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300", Icon: Clock },
+    "Changes Requested": { bg: "bg-rose-100", text: "text-rose-700", border: "border-rose-300", Icon: AlertCircle },
     "Approved": { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-300", Icon: CheckCircle },
-    "Analyst BRD Review": { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300", Icon: Clock },
-    "Under Development": { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300", Icon: Clock },
-    "UAT Testing": { bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300", Icon: AlertCircle },
+    "Development": { bg: "bg-indigo-100", text: "text-indigo-700", border: "border-indigo-300", Icon: Code },
+    "UAT": { bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300", Icon: AlertCircle },
     "Production": { bg: "bg-[#00338D]/20", text: "text-[#00338D]", border: "border-[#00338D]/30", Icon: CheckCircle },
     "Archived": { bg: "bg-slate-100", text: "text-slate-400", border: "border-slate-200", Icon: Archive },
 };
 
-const ALL_STATUSES: BRDStatus[] = ["Generating BRD", "BRD Generated", "Revision Required", "Approved", "Analyst BRD Review", "Under Development", "UAT Testing", "Production", "Archived"];
+const ALL_STATUSES: BRDStatus[] = ["Generating BRD", "BRD Generated", "BRD Review", "Approved", "Development", "UAT", "Production", "Archived"];
 
 export default function BRDManagementPage() {
     const { brds, addBRD, deleteBRD, updateBRDStatus } = useBRDStore();
+    const user = getLoggedInUser();
+    const isProgramManager = user?.role === "program-manager";
     const [showCreate, setShowCreate] = useState(false);
     const [isClient, setIsClient] = useState(false);
 
@@ -97,7 +100,7 @@ export default function BRDManagementPage() {
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <FileText size={20} className="text-[#00338D]" />
-                            <p className="text-[#00338D] font-bold text-sm uppercase tracking-wider">Business User Portal</p>
+                            <p className="text-[#00338D] font-bold text-sm uppercase tracking-wider">Program Manager Portal</p>
                         </div>
                         <h1 className="text-3xl font-bold tracking-tight mb-2">Business Requirement Documents</h1>
                         <p className="text-slate-600 text-sm mt-1">AI-assisted BRD creation, review, and approval centre</p>
@@ -209,14 +212,15 @@ export default function BRDManagementPage() {
                                     </td>
                                     <td className="px-5 py-4 whitespace-nowrap">
                                         <div className="flex items-center justify-end gap-1.5">
-                                            <Link href={`/dashboard/business-user/brd/${brd.id}`} className={isExpanded ? "invisible pointer-events-none" : ""}>
+                                            <Link href={`/dashboard/pm/brd/${brd.id}`} className={isExpanded ? "invisible pointer-events-none" : ""}>
                                                 <button onClick={(e) => e.stopPropagation()}
                                                     className="flex items-center justify-center w-8 h-8 bg-[#00338D]/10 text-[#00338D] rounded-lg interactive hover:bg-[#00338D]/20 transition-colors"
                                                     title="View BRD">
                                                     <Eye size={14} />
                                                 </button>
                                             </Link>
-                                            {["Generating BRD", "BRD Generated", "Revision Required"].includes(brd.status) && (
+                                            {/* Delete only allowed for PM in Draft/Generated phases */}
+                                            {((isProgramManager && ["Generating BRD", "BRD Generated"].includes(brd.status)) || (!isProgramManager && ["Generating BRD", "BRD Generated", "BRD Review"].includes(brd.status))) && (
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -274,13 +278,14 @@ export default function BRDManagementPage() {
                                         <td className="px-5 py-3 text-xs text-slate-400 whitespace-nowrap">{new Date(version.updatedAt || version.createdAt).toLocaleDateString("en-IN", { dateStyle: "medium" })}</td>
                                         <td className="px-5 py-3 whitespace-nowrap">
                                             <div className="flex items-center justify-end gap-1.5">
-                                                <Link href={`/dashboard/business-user/brd/${brd.id}?v=${version.version}`}>
+                                                <Link href={`/dashboard/pm/brd/${brd.id}?v=${version.version}`}>
                                                     <button className="flex items-center justify-center w-8 h-8 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
                                                         title="View Version Map">
                                                         <Eye size={14} />
                                                     </button>
                                                 </Link>
-                                                {["Generating BRD", "BRD Generated", "Revision Required"].includes(computedStatus) && (
+                                                {/* Delete only allowed for PM in Draft/Generated phases */}
+                                                {((isProgramManager && ["Generating BRD", "BRD Generated"].includes(computedStatus)) || (!isProgramManager && ["Generating BRD", "BRD Generated", "BRD Review"].includes(computedStatus))) && (
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();

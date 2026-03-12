@@ -12,8 +12,8 @@ const RoleBadge = ({ role }: { role: string }) => {
             return <span className="bg-purple-100 text-purple-800 border border-purple-200 px-2.5 py-1 flex items-center gap-1 rounded-md text-xs font-semibold"><ShieldCheck size={12} /> Admin</span>;
         case "developer":
             return <span className="bg-blue-100 text-[#00338D] border border-blue-200 px-2.5 py-1 flex items-center gap-1 rounded-md text-xs font-semibold"><Database size={12} /> Developer</span>;
-        case "analyst":
-            return <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1 flex items-center gap-1 rounded-md text-xs font-semibold"><ShieldAlert size={12} /> Analyst</span>;
+        case "business-user":
+            return <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1 flex items-center gap-1 rounded-md text-xs font-semibold"><ShieldAlert size={12} /> Business User</span>;
         case "business":
             return <span className="bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 flex items-center gap-1 rounded-md text-xs font-semibold"><UserPlus size={12} /> Biz User</span>;
         default:

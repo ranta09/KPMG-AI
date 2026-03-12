@@ -7,10 +7,10 @@ import { Search, Filter, Plus, MoreVertical, Edit2, Trash2, FolderOpen } from "l
 
 const initialProjects = [
     { id: 1, name: "Project Alpha (Q1)", owner: "Sarah Jenkins", date: "Jan 12, 2026", roles: ["Admin", "Developer"], status: "Active" },
-    { id: 2, name: "Global Marketing Platform", owner: "Michael Chen", date: "Feb 04, 2026", roles: ["Admin", "Business User"], status: "In Progress" },
-    { id: 3, name: "HR Portal Rewrite", owner: "Emily Davis", date: "Feb 18, 2026", roles: ["Admin", "Analyst", "Developer"], status: "Planning" },
+    { id: 2, name: "Global Marketing Platform", owner: "Michael Chen", date: "Feb 04, 2026", roles: ["Admin", "Program Manager"], status: "In Progress" },
+    { id: 3, name: "HR Portal Rewrite", owner: "Emily Davis", date: "Feb 18, 2026", roles: ["Admin", "Business User", "Developer"], status: "Planning" },
     { id: 4, name: "Legacy System Migration", owner: "Robert Wilson", date: "Mar 01, 2026", roles: ["Admin", "Developer"], status: "Paused" },
-    { id: 5, name: "Billing API Integration", owner: "John Doe", date: "Mar 03, 2026", roles: ["Admin", "Analyst"], status: "Active" }
+    { id: 5, name: "Billing API Integration", owner: "John Doe", date: "Mar 03, 2026", roles: ["Admin", "Business User"], status: "Active" }
 ];
 
 export default function AdminProjects() {

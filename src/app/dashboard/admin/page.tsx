@@ -19,17 +19,16 @@ const PriorityBadge = ({ priority }: { priority: "CRITICAL" | "HIGH" | "MEDIUM" 
     }
 };
 
-const STAGES = ["PDD Draft", "PDD Approved", "Development", "UAT", "Production"];
+const STAGES = ["BRD Generated", "BRD Review", "Approved", "Development", "UAT", "Production"];
 
 const getStageIndex = (status: BRDStatus): number => {
     switch (status) {
         case "Generating BRD": return 0;
-        case "BRD Generated": return 1;
-        case "Analyst BRD Review": return 2;
-        case "Revision Required": return 1;
-        case "Approved":
-        case "Under Development": return 3;
-        case "UAT Testing": return 4;
+        case "BRD Generated": return 0;
+        case "BRD Review": return 1;
+        case "Approved": return 2;
+        case "Development": return 3;
+        case "UAT": return 4;
         case "Production": return 5;
         default: return 0;
     }
@@ -49,9 +48,9 @@ export default function AdminDashboard() {
 
     const stats = [
         { title: "Total BRDs", val: brds.length.toString(), icon: <Lightbulb size={20} className="text-slate-600" />, change: "+5 this week" },
-        { title: "In Review", val: brds.filter(b => b.status === "Analyst BRD Review").length.toString(), icon: <Clock size={20} className="text-amber-600" />, change: "Awaiting BA" },
+        { title: "BRD Review", val: brds.filter(b => b.status === "BRD Review").length.toString(), icon: <Clock size={20} className="text-amber-600" />, change: "Awaiting BA" },
         { title: "Approved", val: brds.filter(b => b.status === "Approved").length.toString(), icon: <CheckCircle size={20} className="text-emerald-600" />, change: "Ready for Dev" },
-        { title: "In Development", val: brds.filter(b => b.status === "Under Development").length.toString(), icon: <PlayCircle size={20} className="text-[#00338D]" />, change: "Active Sprints" },
+        { title: "In Development", val: brds.filter(b => b.status === "Development").length.toString(), icon: <PlayCircle size={20} className="text-[#00338D]" />, change: "Active Sprints" },
         { title: "Deployed", val: brds.filter(b => b.status === "Production").length.toString(), icon: <Rocket size={20} className="text-purple-600" />, change: "Since Q1" },
     ];
     return (

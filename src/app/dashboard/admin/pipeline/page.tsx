@@ -2,18 +2,18 @@
 
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Plus, Filter, Search, ChevronRight, CornerDownRight, Eye, CheckCircle, Clock, AlertCircle, RotateCcw, Archive, FileText, Loader2, Trash2 } from "lucide-react";
+import { Plus, Filter, Search, ChevronRight, CornerDownRight, Eye, CheckCircle, Clock, AlertCircle, RotateCcw, Archive, FileText, Loader2, Trash2, Code } from "lucide-react";
 import Link from "next/link";
 import { useBRDStore, BRDStatus } from "@/lib/brdStore";
 
 const STATUS_CONFIG: Record<BRDStatus, { bg: string; text: string; border: string; Icon: React.ElementType }> = {
     "Generating BRD": { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-300", Icon: Loader2 },
     "BRD Generated": { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-300", Icon: CheckCircle },
-    "Revision Required": { bg: "bg-red-100", text: "text-red-700", border: "border-red-300", Icon: RotateCcw },
+    "BRD Review": { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300", Icon: Clock },
+    "Changes Requested": { bg: "bg-rose-100", text: "text-rose-700", border: "border-rose-300", Icon: RotateCcw },
     "Approved": { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-300", Icon: CheckCircle },
-    "Analyst BRD Review": { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300", Icon: Clock },
-    "Under Development": { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300", Icon: Clock },
-    "UAT Testing": { bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300", Icon: AlertCircle },
+    "Development": { bg: "bg-[#00338D]/10", text: "text-[#00338D]", border: "border-[#00338D]/20", Icon: Code },
+    "UAT": { bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300", Icon: AlertCircle },
     "Production": { bg: "bg-[#00338D]/20", text: "text-[#00338D]", border: "border-[#00338D]/30", Icon: CheckCircle },
     "Archived": { bg: "bg-slate-100", text: "text-slate-400", border: "border-slate-200", Icon: Archive },
 };
@@ -73,7 +73,7 @@ export default function PipelinePage() {
                     <button className="interactive flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-700 transition-colors text-sm shadow-sm font-semibold">
                         <Filter size={18} className="text-[#00338D]" /> Filter
                     </button>
-                    <Link href="/dashboard/business-user/brd">
+                    <Link href="/dashboard/pm/brd">
                         <button className="interactive flex items-center gap-2 px-5 py-2.5 bg-[#00338D] border border-transparent rounded-xl hover:bg-[#00266e] text-white transition-colors text-sm shadow-md font-bold">
                             <Plus size={18} /> New BRD
                         </button>
@@ -161,7 +161,7 @@ export default function PipelinePage() {
                                         </td>
                                         <td className="px-6 py-5 whitespace-nowrap">
                                             <div className="flex items-center justify-end gap-2">
-                                                <Link href={`/dashboard/business-user/brd/${brd.id}`} className={isExpanded ? "invisible pointer-events-none" : ""}>
+                                                <Link href={`/dashboard/pm/brd/${brd.id}`} className={isExpanded ? "invisible pointer-events-none" : ""}>
                                                     <button onClick={(e) => e.stopPropagation()} className="inline-flex items-center justify-center w-8 h-8 font-bold bg-[#00338D]/10 text-[#00338D] rounded-xl hover:bg-[#00338D]/20 transition-all shadow-sm active:scale-95 text-xs" title="Open BRD">
                                                         <Eye size={14} />
                                                     </button>
@@ -225,7 +225,7 @@ export default function PipelinePage() {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <Link href={`/dashboard/business-user/brd/${brd.id}?v=${version.version}`}>
+                                                    <Link href={`/dashboard/pm/brd/${brd.id}?v=${version.version}`}>
                                                         <button onClick={(e) => e.stopPropagation()} className="inline-flex items-center justify-center w-8 h-8 font-bold bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:border-[#00338D] hover:text-[#00338D] transition-all shadow-sm active:scale-95 text-xs" title="View Version Map">
                                                             <Eye size={14} />
                                                         </button>

@@ -25,8 +25,8 @@ import {
 import { useState, useEffect } from "react";
 
 const navItems = [
-    { name: "BRD Management", path: "/dashboard/business-user/brd", role: "business", icon: <FileText size={20} /> },
-    { name: "Business Analyst", path: "/dashboard/analyst", role: "analyst", icon: <BarChart size={20} /> },
+    { name: "BRD Management", path: "/dashboard/pm/brd", role: "program-manager", icon: <FileText size={20} /> },
+    { name: "Business User", path: "/dashboard/business", role: "business-user", icon: <BarChart size={20} /> },
     { name: "Agents", path: "/dashboard/developer/agents", role: "developer", icon: <Bot size={20} /> },
 
     // Admin Routes
@@ -164,7 +164,9 @@ export default function Sidebar() {
                             </div>
                             <div className="flex-1 overflow-hidden pr-2">
                                 <p className="text-sm font-semibold text-slate-900 truncate">{userName}</p>
-                                <p className="text-xs text-slate-500 capitalize truncate font-medium">{userRole}</p>
+                                <p className="text-xs text-slate-500 capitalize truncate font-medium">
+                                    {userRole === "program-manager" ? "Program Manager" : userRole === "business-user" ? "Business User" : userRole}
+                                </p>
                             </div>
                         </div>
                         <div className="p-2 text-slate-400 group-hover:text-red-500 group-hover:bg-red-50 rounded-lg transition-colors flex-shrink-0">

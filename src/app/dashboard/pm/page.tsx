@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { FileText, Clock, CheckCircle, RotateCcw, Plus, ArrowRight, Sparkles, UserCheck, Code, Play } from "lucide-react";
+import { Plus, FileText, CheckCircle, Play, BarChart, Clock, Layout, ArrowRight, Sparkles, UserCheck, Code, Users, Rocket, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useBRDStore } from "@/lib/brdStore";
 
@@ -12,35 +12,41 @@ export default function BusinessUserDashboard() {
     const [demoStep, setDemoStep] = useState(0);
 
     const approved = brds.filter(b => b.status === "Approved").length;
-    const revisionRequired = brds.filter(b => b.status === "Revision Required").length;
+    const brdReviewCount = brds.filter(b => b.status === "BRD Review").length;
 
     const statusConfig = {
         "Draft": { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200", Icon: FileText },
-        "Revision Required": { bg: "bg-red-100", text: "text-red-700", border: "border-red-300", Icon: RotateCcw },
+        "BRD Review": { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300", Icon: RotateCcw },
         "Approved": { bg: "bg-emerald-100", text: "text-emerald-700", border: "border-emerald-300", Icon: CheckCircle },
+        "Development": { bg: "bg-indigo-100", text: "text-indigo-700", border: "border-indigo-300", Icon: Code },
+        "UAT": { bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300", Icon: FileText },
+        "Production": { bg: "bg-[#00338D]/20", text: "text-[#00338D]", border: "border-[#00338D]/30", Icon: Rocket },
         "Archived": { bg: "bg-slate-100", text: "text-slate-400", border: "border-slate-200", Icon: FileText },
     } as Record<string, any>;
 
     const summaryCards = [
         { label: "Total BRDs", value: brds.length, icon: FileText, color: "text-[#00338D]", bg: "bg-[#00338D]/8" },
         { label: "Approved", value: approved, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
-        { label: "Revision", value: revisionRequired, icon: RotateCcw, color: "text-red-600", bg: "bg-red-50" },
+        { label: "BRD Review", value: brdReviewCount, icon: Clock, color: "text-purple-600", bg: "bg-purple-50" },
     ];
 
-    const WORKFLOW_STAGES = ["Generated", "Review", "Approved", "In Development"];
+    const WORKFLOW_STAGES = ["BRD Generated", "BRD Review", "Approved", "Development"];
 
     const getPipelineStage = (status: string) => {
-        if (status === "Draft" || status === "Revision Required") return 0;
+        if (status === "Draft" || status === "BRD Generated") return 0;
+        if (status === "BRD Review") return 1;
         if (status === "Approved") return 2;
+        if (status === "Development" || status === "UAT" || status === "Production") return 3;
         return 0;
     };
 
     const DEMO_STEPS = [
-        { id: 1, title: "Create BRD", desc: "Define title & Build Type", icon: Plus },
-        { id: 2, title: "AI Generation", desc: "Complete BRD auto-generated", icon: Sparkles },
-        { id: 3, title: "Structured Review", desc: "Stakeholder review & comments", icon: FileText },
-        { id: 4, title: "Approval", desc: "Sign-off for development", icon: UserCheck },
-        { id: 5, title: "Orchestration", desc: "Agents build the solution", icon: Code },
+        { id: 1, title: "BRD Generated", desc: "AI-assisted draft ready", icon: Sparkles },
+        { id: 2, title: "BRD Review", desc: "Distributed to stakeholders", icon: Users },
+        { id: 3, title: "Approved", desc: "Formal sign-off obtained", icon: UserCheck },
+        { id: 4, title: "Development", desc: "Orchestration agents building", icon: Code },
+        { id: 5, title: "UAT", desc: "User validation in progress", icon: FileText },
+        { id: 6, title: "Production", desc: "Solution deployed to live", icon: Rocket },
     ];
 
     const startDemo = () => {
@@ -51,7 +57,7 @@ export default function BusinessUserDashboard() {
 
         const interval = setInterval(() => {
             currentStep++;
-            if (currentStep > 5) {
+            if (currentStep > 6) {
                 clearInterval(interval);
                 setTimeout(() => {
                     setDemoActive(false);
@@ -74,15 +80,15 @@ export default function BusinessUserDashboard() {
                     </div>
                 </div>
                 <div className="relative z-10">
-                    <p className="text-[#00338D] font-bold text-sm mb-1 uppercase tracking-wider">Business User Portal</p>
+                    <p className="text-[#00338D] font-bold text-sm mb-1 uppercase tracking-wider">Program Manager Portal</p>
                     <h1 className="text-3xl font-bold tracking-tight mb-2">Welcome to your Workspace</h1>
                     <p className="text-slate-600 text-sm mt-1">Manage your business requirements and track BRD progress</p>
                     <div className="flex gap-4 mt-6">
-                        <Link href="/dashboard/business-user/brd?new=true"
+                        <Link href="/dashboard/pm/brd?new=true"
                             className="flex items-center gap-2 px-5 py-2.5 bg-[#00338D] text-white font-bold text-sm rounded-xl hover:bg-[#001f5c] transition-all interactive shadow-md hover:shadow-lg">
                             <Plus size={15} /> Create New BRD
                         </Link>
-                        <Link href="/dashboard/business-user/brd"
+                        <Link href="/dashboard/pm/brd"
                             className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 hover:border-[#00338D] transition-all interactive shadow-sm">
                             <FileText size={15} /> View All BRDs
                         </Link>
@@ -237,7 +243,7 @@ export default function BusinessUserDashboard() {
                             </motion.div>
                         )}
 
-                        {/* Step 3: Analyst Review */}
+                        {/* Step 3: Business User Review */}
                         {demoStep === 3 && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full bg-white rounded-xl shadow-2xl flex border border-slate-200 overflow-hidden relative">
                                 <div className="w-2/3 p-6 border-r border-slate-100 flex flex-col space-y-4">
@@ -252,7 +258,7 @@ export default function BusinessUserDashboard() {
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-white p-3 rounded-lg shadow-sm border border-slate-200 text-sm">
                                         <div className="flex items-center gap-2 mb-2">
                                             <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] font-bold">BA</div>
-                                            <span className="font-bold text-slate-700">Analyst</span>
+                                            <span className="font-bold text-slate-700">Business User</span>
                                         </div>
                                         <p className="text-slate-600 text-xs text-balance">Looks good! The logic flows perfectly for the ERP integration. Approved.</p>
                                     </motion.div>

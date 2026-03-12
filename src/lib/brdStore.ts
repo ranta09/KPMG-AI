@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type BRDStatus = "Generating BRD" | "BRD Generated" | "Revision Required" | "Approved" | "Analyst BRD Review" | "Under Development" | "UAT Testing" | "Production" | "Archived";
+export type BRDStatus = "Generating BRD" | "BRD Generated" | "BRD Review" | "Changes Requested" | "Approved" | "Development" | "UAT" | "Production" | "Archived";
 
 export interface BRDComment {
     id: string;
@@ -45,12 +45,15 @@ export interface BRDInput {
     stakeholders: string;
     kpis: string;
     constraints: string;
+    projectCode?: string;
+    customVersion?: string;
     sapModule?: string;
     uploadedFiles?: string[];
 }
 
 export interface BRDRecord {
     id: string;
+    projectCode: string;
     projectName: string;
     version: string;
     status: BRDStatus;
@@ -62,6 +65,8 @@ export interface BRDRecord {
     comments: BRDComment[];
     versionHistory: BRDVersion[];
     isLocked: boolean;
+    reviewerEmail?: string;
+    assignedDeveloperEmail?: string;
 }
 
 // ─── Mock Generated Sections ──────────────────────────────────────────────
@@ -101,9 +106,11 @@ const INPUT1: BRDInput = {
     problemStatement: "Manual purchase processes cause 5-day delays in procurement cycles and result in frequent invoice mismatches.",
     currentProcess: "Paper-based requisitions, email approvals, manual PO creation, manual GR and invoice matching.",
     desiredOutcome: "Fully automated P2P and OTC processes with real-time financial visibility.",
+    customVersion: "v2.1",
     stakeholders: "Finance Director, Procurement Head, IT Director, Regional Operations Managers",
     kpis: "PO processing time < 4 hours, Invoice match rate > 98%, System uptime > 99.9%",
     constraints: "Go-live must occur before Q1 financial year close. Budget cap of $4.2M.",
+    projectCode: "PRJ-KPMG-001",
     sapModule: "React/Next.js web app",
 };
 
@@ -113,9 +120,11 @@ const INPUT2: BRDInput = {
     problemStatement: "Current FI module does not support IFRS 16 lease accounting, forcing manual adjustments at period end.",
     currentProcess: "Manual Excel-based IFRS adjustments uploaded to SAP ECC monthly.",
     desiredOutcome: "Automated IFRS 16 calculations and real-time lease liability reporting within SAP S/4HANA.",
+    customVersion: "v1.2",
     stakeholders: "CFO, Financial Controller, External Auditors",
     kpis: "Period-end close reduced from 10 days to 3 days, zero manual IFRS adjustments",
     constraints: "Must be live before Q2 external audit. No changes to chart of accounts structure.",
+    projectCode: "PRJ-KPMG-002",
     sapModule: "SAPUI5 Fiori Elements",
 };
 
@@ -125,9 +134,11 @@ const INPUT3: BRDInput = {
     problemStatement: "SAP ECC 6.0 reaches end of maintenance in 2027. Business must migrate to avoid unsupported platform risk.",
     currentProcess: "Three separate ECC instances across APAC, EMEA, and Americas regions.",
     desiredOutcome: "Single consolidated S/4HANA instance with global process harmonisation.",
+    customVersion: "v1.0",
     stakeholders: "CIO, Regional IT Heads, SAP Centre of Excellence",
     kpis: "Zero data loss, < 24hr cutover downtime, 100% process parity post-migration",
     constraints: "Migration must not impact year-end financial close. Americas region deferred to Phase 2.",
+    projectCode: "PRJ-KPMG-003",
     sapModule: "SAP S/4HANA",
 };
 
@@ -137,85 +148,94 @@ const INPUT4: BRDInput = {
     problemStatement: "Vendor enquiries about invoice status consume 40% of AP team's time. Manual portal updates cause errors.",
     currentProcess: "Vendors email AP team for status. AP manually checks SAP and replies.",
     desiredOutcome: "Vendors self-serve invoice status, submit invoices electronically, and receive automated payment notifications.",
+    customVersion: "v1.0",
     stakeholders: "AP Manager, Procurement Director, 150+ Vendor Partners",
     kpis: "AP query volume reduced 80%, invoice processing time < 24hrs, vendor satisfaction > 4.5/5",
     constraints: "Must use existing SAP Fiori framework. No new middleware allowed.",
+    projectCode: "PRJ-KPMG-004",
     sapModule: "React/Next.js web app",
 };
 
 export const INITIAL_BRDS: BRDRecord[] = [
     {
         id: "BRD-001",
+        projectCode: "PRJ-KPMG-001",
         projectName: "Global ERP Rollout",
         version: "v2.1",
         status: "Approved",
         createdAt: "2026-02-10T09:30:00Z",
         updatedAt: "2026-03-01T14:20:00Z",
-        createdBy: "Business User",
+        createdBy: "Ujjwal Gupta",
         isLocked: true,
         input: INPUT1,
         sections: secs1,
+        reviewerEmail: "vikash",
         comments: [
-            { id: "c1", author: "Jane Smith", role: "Business Analyst", content: "Scope section updated to include GST localisation requirements for India entities.", timestamp: "2026-02-28T10:15:00Z", section: "scope" },
+            { id: "c1", author: "Jane Smith", role: "Business User", content: "Scope section updated to include GST localisation requirements for India entities.", timestamp: "2026-02-28T10:15:00Z", section: "scope" },
             { id: "c2", author: "Admin", role: "Admin", content: "BRD v2.1 formally approved by Steering Committee on 1 March 2026.", timestamp: "2026-03-01T14:20:00Z" },
         ],
         versionHistory: [
-            { version: "v1.0", status: "BRD Generated", createdAt: "2026-02-10T09:30:00Z", updatedAt: "2026-02-10T09:30:00Z", createdBy: "Business User", changeSummary: "Initial draft created from stakeholder workshop.", input: INPUT1, sections: secs1 },
-            { version: "v2.0", status: "Analyst BRD Review", createdAt: "2026-02-20T11:00:00Z", updatedAt: "2026-02-20T11:00:00Z", createdBy: "Business Analyst", changeSummary: "Added SAP module mapping and updated scope based on BA review.", input: INPUT1, sections: secs1 },
-            { version: "v2.1", status: "Approved", createdAt: "2026-03-01T09:00:00Z", updatedAt: "2026-03-01T14:20:00Z", createdBy: "Business User", changeSummary: "Incorporated India GST localisation requirements. Final version.", input: INPUT1, sections: secs1 },
+            { version: "v1.0", status: "BRD Generated", createdAt: "2026-02-10T09:30:00Z", updatedAt: "2026-02-10T09:30:00Z", createdBy: "Ujjwal Gupta", changeSummary: "Initial draft created from stakeholder workshop.", input: INPUT1, sections: secs1 },
+            { version: "v2.0", status: "BRD Review", createdAt: "2026-02-20T11:00:00Z", updatedAt: "2026-02-20T11:00:00Z", createdBy: "Business User", changeSummary: "Added SAP module mapping and updated scope based on business user review.", input: INPUT1, sections: secs1 },
+            { version: "v2.1", status: "Approved", createdAt: "2026-03-01T09:00:00Z", updatedAt: "2026-03-01T14:20:00Z", createdBy: "Ujjwal Gupta", changeSummary: "Incorporated India GST localisation requirements. Final version.", input: INPUT1, sections: secs1 },
         ],
     },
     {
         id: "BRD-002",
+        projectCode: "PRJ-KPMG-002",
         projectName: "Finance Module Upgrade",
         version: "v1.2",
         status: "BRD Generated",
         createdAt: "2026-02-18T11:00:00Z",
         updatedAt: "2026-03-03T09:45:00Z",
-        createdBy: "Business User",
+        createdBy: "Ujjwal Gupta",
         isLocked: false,
         input: INPUT2,
         sections: secs2,
         comments: [
-            { id: "c3", author: "Sarah Lee", role: "Business Analyst", content: "Please clarify the reporting currency requirements — USD only or multi-currency?", timestamp: "2026-03-02T14:30:00Z", section: "functionalRequirements" },
+            { id: "c3", author: "Sarah Lee", role: "Business User", content: "Please clarify the reporting currency requirements — USD only or multi-currency?", timestamp: "2026-03-02T14:30:00Z", section: "functionalRequirements" },
         ],
         versionHistory: [
-            { version: "v1.0", status: "Generating BRD", createdAt: "2026-02-18T11:00:00Z", updatedAt: "2026-02-18T11:00:00Z", createdBy: "Business User", changeSummary: "Initial draft.", input: INPUT2, sections: secs2 },
-            { version: "v1.2", status: "BRD Generated", createdAt: "2026-03-03T09:45:00Z", updatedAt: "2026-03-03T09:45:00Z", createdBy: "Business User", changeSummary: "Updated acceptance criteria to include audit sign-off requirement.", input: INPUT2, sections: secs2 },
+            { version: "v1.0", status: "Generating BRD", createdAt: "2026-02-18T11:00:00Z", updatedAt: "2026-02-18T11:00:00Z", createdBy: "Ujjwal Gupta", changeSummary: "Initial draft.", input: INPUT2, sections: secs2 },
+            { version: "v1.2", status: "BRD Generated", createdAt: "2026-03-03T09:45:00Z", updatedAt: "2026-03-03T09:45:00Z", createdBy: "Ujjwal Gupta", changeSummary: "Updated acceptance criteria to include audit sign-off requirement.", input: INPUT2, sections: secs2 },
         ],
     },
     {
         id: "BRD-003",
+        projectCode: "PRJ-KPMG-003",
         projectName: "S/4HANA Migration",
         version: "v1.0",
-        status: "Revision Required",
+        status: "BRD Review",
         createdAt: "2026-03-01T08:00:00Z",
         updatedAt: "2026-03-03T16:00:00Z",
-        createdBy: "Business User",
+        createdBy: "Ujjwal Gupta",
         isLocked: false,
         input: INPUT3,
         sections: secs3,
+        reviewerEmail: "vikash",
         comments: [
             { id: "c4", author: "Admin", role: "Admin", content: "Scope needs to clearly exclude Americas region. Please revise Section 2 (Scope).", timestamp: "2026-03-03T16:00:00Z", section: "scope" },
         ],
         versionHistory: [
-            { version: "v1.0", status: "Revision Required", createdAt: "2026-03-01T08:00:00Z", updatedAt: "2026-03-03T16:00:00Z", createdBy: "Business User", changeSummary: "Initial draft submitted for review.", input: INPUT3, sections: secs3 },
+            { version: "v1.0", status: "BRD Review", createdAt: "2026-03-01T08:00:00Z", updatedAt: "2026-03-03T16:00:00Z", createdBy: "Ujjwal Gupta", changeSummary: "Initial draft submitted for review.", input: INPUT3, sections: secs3 },
         ],
     },
     {
         id: "BRD-004",
+        projectCode: "PRJ-KPMG-004",
         projectName: "Vendor Portal Integration",
         version: "v1.0",
         status: "BRD Generated",
         createdAt: "2026-03-04T07:00:00Z",
         updatedAt: "2026-03-04T07:00:00Z",
-        createdBy: "Business User",
+        createdBy: "Ujjwal Gupta",
         isLocked: false,
         input: INPUT4,
         sections: secs4,
+        reviewerEmail: "vikash",
         comments: [],
         versionHistory: [
-            { version: "v1.0", status: "BRD Generated", createdAt: "2026-03-04T07:00:00Z", updatedAt: "2026-03-04T07:00:00Z", createdBy: "Business User", changeSummary: "Initial requirement gathering.", input: INPUT4, sections: secs4 },
+            { version: "v1.0", status: "BRD Generated", createdAt: "2026-03-04T07:00:00Z", updatedAt: "2026-03-04T07:00:00Z", createdBy: "Ujjwal Gupta", changeSummary: "Initial requirement gathering.", input: INPUT4, sections: secs4 },
         ],
     },
 ];
@@ -285,7 +305,7 @@ export const BRD_AI_RESPONSES: Record<string, string[]> = {
 interface BRDStore {
     brds: BRDRecord[];
     addBRD: (brd: BRDRecord) => void;
-    updateBRDStatus: (id: string, status: BRDStatus) => void;
+    updateBRDStatus: (id: string, status: BRDStatus, reviewerEmail?: string, developerEmail?: string) => void;
     deleteBRD: (id: string) => void;
     deleteVersion: (id: string, version: string) => void;
     addComment: (id: string, comment: Omit<BRDComment, "id" | "timestamp">) => void;
@@ -299,13 +319,15 @@ export const useBRDStore = create<BRDStore>()(
         (set) => ({
             brds: [],
             addBRD: (brd) => set((state) => ({ brds: [brd, ...state.brds] })),
-            updateBRDStatus: (id, status) => set((state) => ({
+            updateBRDStatus: (id, status, reviewerEmail, developerEmail) => set((state) => ({
                 brds: state.brds.map(b => {
                     if (b.id !== id) return b;
                     const now = new Date().toISOString();
                     return {
                         ...b,
                         status,
+                        reviewerEmail: reviewerEmail || b.reviewerEmail,
+                        assignedDeveloperEmail: developerEmail || b.assignedDeveloperEmail,
                         updatedAt: now,
                         versionHistory: b.versionHistory.length > 0
                             ? [
@@ -386,16 +408,16 @@ export const useBRDStore = create<BRDStore>()(
                 const updatedBrd: BRDRecord = {
                     ...b,
                     version: newVersion,
-                    status: "Revision Required",
+                    status: "BRD Review",
                     updatedAt: now,
                     isLocked: false,
                     versionHistory: [
                         {
                             version: newVersion,
-                            status: "Revision Required",
+                            status: "BRD Review",
                             createdAt: now,
                             updatedAt: now,
-                            createdBy: "Business User",
+                            createdBy: "Ujjwal Gupta",
                             changeSummary: newInput ? `Major revision with updated requirements. Transitioned to ${newVersion}.` : `Major revision requested. Transitioned to ${newVersion}.`,
                             input: { ...b.input },
                             sections: { ...b.sections }
@@ -407,6 +429,7 @@ export const useBRDStore = create<BRDStore>()(
                 if (newInput) {
                     updatedBrd.input = { ...newInput };
                     updatedBrd.projectName = newInput.projectName;
+                    updatedBrd.projectCode = newInput.projectCode || b.projectCode;
                     // Mock re-generation of sections
                     updatedBrd.sections = makeSections(newInput.projectName, newInput.problemStatement);
                     updatedBrd.status = "Generating BRD";
@@ -417,7 +440,7 @@ export const useBRDStore = create<BRDStore>()(
                 }
 
                 if (routerPush) {
-                    setTimeout(() => routerPush(`/dashboard/business-user/brd/${b.id}`), 100);
+                    setTimeout(() => routerPush(`/dashboard/pm/brd/${b.id}`), 100);
                 }
 
                 return {
@@ -432,6 +455,7 @@ export const useBRDStore = create<BRDStore>()(
                 const updatedBrd: BRDRecord = {
                     ...b,
                     projectName: newInput.projectName,
+                    projectCode: newInput.projectCode || b.projectCode,
                     input: { ...newInput },
                     sections: makeSections(newInput.projectName, newInput.problemStatement),
                     updatedAt: now,

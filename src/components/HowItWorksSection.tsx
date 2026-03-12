@@ -20,7 +20,7 @@ const steps = [
         border: "border-[#00338D]/20",
         num: "02",
         title: "AI Agent Review",
-        desc: "The Requirement Analyst agent validates the BRD for completeness, identifies gaps, maps to Build Types, and surfaces risks. Stakeholders comment and request revisions inline.",
+        desc: "The Requirement Specialist agent validates the BRD for completeness, identifies gaps, maps to Build Types, and surfaces risks. Stakeholders comment and request revisions inline.",
     },
     {
         icon: <CheckCircle className="w-6 h-6" />,

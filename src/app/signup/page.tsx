@@ -9,7 +9,7 @@ import NeuralNetworkCanvas from "@/components/NeuralNetworkCanvas";
 export default function SignupPage() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
-    const [role, setRole] = useState<"business" | "developer" | "analyst" | "admin" | "">("");
+    const [role, setRole] = useState<"program-manager" | "developer" | "business-user" | "admin" | "">("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
@@ -135,8 +135,8 @@ export default function SignupPage() {
                                     required
                                 >
                                     <option value="" disabled>Select your role</option>
-                                    <option value="business">Business User</option>
-                                    <option value="analyst">Business Analyst</option>
+                                    <option value="program-manager">Program Manager</option>
+                                    <option value="business-user">Business User</option>
                                     <option value="developer">Developer</option>
                                 </select>
                             </div>

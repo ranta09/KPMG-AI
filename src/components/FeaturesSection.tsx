@@ -16,31 +16,31 @@ const features = [
         icon: <Bot className="w-7 h-7 text-[#00338D]" />,
         label: "Agent Ecosystem",
         title: "8 Enterprise AI Agents",
-        description: "Purpose-built agents — Requirement Analyst, BRD Generator, Solution Architect, Code Builder, Test Orchestrator, Security Reviewer, Deployment Manager, and Stakeholder Communicator — each with live task queues, execution history, and streaming logs.",
+        description: "Purpose-built agents — Requirement Specialist, BRD Generator, Solution Architect, Code Builder, Test Orchestrator, Security Reviewer, Deployment Manager, and Stakeholder Communicator — each with live task queues, execution history, and streaming logs.",
     },
     {
         icon: <Hammer className="w-7 h-7 text-purple-500" />,
         label: "Build Orchestration",
         title: "Build from BRD",
-        description: "Business Users approve a BRD and click Generate. The platform auto-orchestrates 5 agents to produce architecture docs, production-ready code, API specs, test plans, and deployment strategies — for 7 build types including REST APIs, SAP Fiori apps, and RPA bots.",
+        description: "Program Managers approve a BRD and click Generate. The platform auto-orchestrates 5 agents to produce architecture docs, production-ready code, API specs, test plans, and deployment strategies — for 7 build types including REST APIs, SAP Fiori apps, and RPA bots.",
     },
     {
         icon: <GitBranch className="w-7 h-7 text-emerald-500" />,
         label: "Pipeline",
         title: "Project Pipeline",
-        description: "Kanban-style pipeline board tracking every initiative from Idea through In Review, Approved, In Development, to Deployed. Full project management with status cards, owners, and progress indicators.",
+        description: "Kanban-style pipeline board tracking every initiative from Idea through BRD Review, Approved, In Development, to Deployed. Full project management with status cards, owners, and progress indicators.",
     },
     {
         icon: <Shield className="w-7 h-7 text-amber-500" />,
         label: "Governance",
         title: "Enterprise Governance",
-        description: "Role-based access control across Admin, Developer, Business Analyst, and Business User roles. Business Users cannot edit raw code. Every build, BRD change, and agent execution is logged with a full audit trail.",
+        description: "Role-based access control across Admin, Developer, Business User, and Program Manager roles. Program Managers cannot edit raw code. Every build, BRD change, and agent execution is logged with a full audit trail.",
     },
     {
         icon: <BarChart3 className="w-7 h-7 text-rose-500" />,
         label: "Analytics",
-        title: "Business Analyst Dashboard",
-        description: "Dedicated analyst workspace with project metrics, BRD coverage reporting, requirement quality scores, and stakeholder visibility — all in one premium enterprise-grade view.",
+        title: "Business User Dashboard",
+        description: "Dedicated business user workspace with project metrics, BRD coverage reporting, requirement quality scores, and stakeholder visibility — all in one premium enterprise-grade view.",
     },
     {
         icon: <Users className="w-7 h-7 text-cyan-500" />,
@@ -52,7 +52,7 @@ const features = [
         icon: <Cpu className="w-7 h-7 text-indigo-500" />,
         label: "Developer Hub",
         title: "Developer Workspace",
-        description: "Developers receive AI-generated builds for review and validation. Agent control tower with live status, task queues, execution history, and streaming logs. Build pipeline from Business User to deployment.",
+        description: "Developers receive AI-generated builds for review and validation. Agent control tower with live status, task queues, execution history, and streaming logs. Build pipeline from Program Manager to deployment.",
     },
 ];
 

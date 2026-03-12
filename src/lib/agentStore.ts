@@ -55,8 +55,8 @@ export interface AgentConfig {
 export const AGENTS: AgentConfig[] = [
     {
         id: "requirement-analyst",
-        name: "Requirement Analyst",
-        shortName: "RA",
+        name: "Requirement Specialist",
+        shortName: "RS",
         status: "Active",
         purpose: "Interviews stakeholders and generates structured requirements from meeting transcripts.",
         capabilities: [
@@ -83,7 +83,7 @@ export const AGENTS: AgentConfig[] = [
         status: "Active",
         purpose: "Transforms structured requirements into a comprehensive, procurement-ready Business Requirement Document.",
         capabilities: [
-            "Pull structured input from Requirement Analyst",
+            "Pull structured input from Requirement Specialist",
             "Generate Executive Summary & Scope",
             "Map business processes to standard flows",
             "Build Acceptance Criteria & KPIs section",
@@ -94,7 +94,7 @@ export const AGENTS: AgentConfig[] = [
         projectContext: "PRJ-001 – Global ERP Rollout",
         outputLabel: "Business Requirement Document (BRD)",
         inputLabel: "Provide Structured Requirements",
-        inputPlaceholder: "Paste the structured requirements output from the Requirement Analyst agent...",
+        inputPlaceholder: "Paste the structured requirements output from the Requirement Specialist agent...",
         color: "bg-indigo-600",
         icon: "BG",
     },
@@ -235,7 +235,7 @@ export const AGENTS: AgentConfig[] = [
 
 // Default task queues
 export const INITIAL_TASKS: AgentTask[] = [
-    // Requirement Analyst – 3 tasks
+    // Requirement Specialist – 3 tasks
     { id: "t1", title: "Analyze Q1 Scope Meeting Transcript", status: "running", progress: 62, agentId: "requirement-analyst", createdAt: "2026-03-04T06:00:00Z" },
     { id: "t2", title: "Extract MM Module Requirements – PRJ-001", status: "queued", progress: 0, agentId: "requirement-analyst", createdAt: "2026-03-04T07:15:00Z" },
     { id: "t3", title: "Generate Clarification Questions for FI Team", status: "queued", progress: 0, agentId: "requirement-analyst", createdAt: "2026-03-04T08:30:00Z" },

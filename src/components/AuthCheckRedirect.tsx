@@ -14,7 +14,26 @@ export default function AuthCheckRedirect() {
 
         // Redirect logic
         if (user && (pathname === "/" || pathname === "/login" || pathname === "/signup")) {
-            router.replace(user.dashboardPath);
+            // Fix for legacy redirects if paths were renamed
+            let targetPath = user.dashboardPath;
+            let needsCookieUpdate = false;
+
+            if (targetPath.includes('/dashboard/analyst')) {
+                targetPath = targetPath.replace('/dashboard/analyst', '/dashboard/business');
+                needsCookieUpdate = true;
+            } else if (targetPath.includes('/dashboard/business-user')) {
+                targetPath = targetPath.replace('/dashboard/business-user', '/dashboard/pm');
+                needsCookieUpdate = true;
+            }
+
+            if (needsCookieUpdate) {
+                // Update the cookie so we don't keep hitting the old path
+                const updatedUser = { ...user, dashboardPath: targetPath };
+                const Cookies = require('js-cookie');
+                Cookies.set('kpmg_auth_user', JSON.stringify(updatedUser), { expires: 1 });
+            }
+
+            router.replace(targetPath);
         } else if (!user && pathname.startsWith("/dashboard")) {
             router.replace("/login");
         }

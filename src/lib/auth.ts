@@ -2,20 +2,22 @@
 
 import Cookies from 'js-cookie';
 
-// Roles: 'admin', 'business', 'developer', 'analyst'
+// Roles: 'admin', 'business', 'developer', 'business-user'
 export interface UserFlow {
     username: string;
+    fullName: string;
     role: string;
     dashboardPath: string;
 }
 
-export function loginUser(role: string, username: string) {
-    let dashboardPath = '/dashboard/business-user'; // Default
+export function loginUser(role: string, username: string, fullName: string = "User") {
+    let dashboardPath = '/dashboard/pm'; // Default
     if (role === 'admin') dashboardPath = '/dashboard/admin';
     if (role === 'developer') dashboardPath = '/dashboard/developer';
-    if (role === 'analyst') dashboardPath = '/dashboard/analyst';
+    if (role === 'business-user') dashboardPath = '/dashboard/business';
+    if (role === 'program-manager') dashboardPath = '/dashboard/pm';
 
-    const user: UserFlow = { username, role, dashboardPath };
+    const user: UserFlow = { username, fullName, role, dashboardPath };
     if (typeof window !== 'undefined') {
         Cookies.set('kpmg_auth_user', JSON.stringify(user), { expires: 1 });
     }

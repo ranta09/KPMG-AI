@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Check if the user is hitting any protected dashboard path
@@ -30,7 +30,11 @@ export function proxy(request: NextRequest) {
                 return NextResponse.redirect(new URL('/unauthorized', request.url));
             }
 
-            if (pathname.startsWith('/dashboard/analyst') && user.role !== 'analyst' && user.role !== 'admin') {
+            if (pathname.startsWith('/dashboard/business') && user.role !== 'business-user' && user.role !== 'admin') {
+                return NextResponse.redirect(new URL('/unauthorized', request.url));
+            }
+
+            if (pathname.startsWith('/dashboard/pm') && user.role !== 'program-manager' && user.role !== 'admin') {
                 return NextResponse.redirect(new URL('/unauthorized', request.url));
             }
 

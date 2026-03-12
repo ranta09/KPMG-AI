@@ -29,9 +29,9 @@ const roleConfig: Record<string, RoleData> = {
         greeting: "Hi Developer. Need help summarizing PDDs or generating API structures?",
         prompts: ["Summarize PRJ-001 requirements", "Generate REST API structure for inventory module", "Show my assigned issues"]
     },
-    analyst: {
-        title: "BA Assistant",
-        greeting: "Hello Analyst. I can help convert notes to PDD or identify requirement gaps.",
+    "business-user": {
+        title: "Business User Assistant",
+        greeting: "Hello Vikash. I can help convert notes to PDD or identify requirement gaps.",
         prompts: ["Convert this text to structured PDD", "Find gaps in onboarding requirement", "Suggest acceptance criteria"]
     },
     business: {
@@ -55,7 +55,7 @@ const mockAIResponses: Record<string, string> = {
     "Convert this text to structured PDD": "I've structured your notes into a formal PDD format. The objective is clearly defined, but I recommend adding specific Acceptance Criteria for the login flow.",
     "Find gaps in onboarding requirement": "Analyzing... The onboarding requirement is missing error handling logic for duplicate email registrations and lacks a defined timeout for the 2FA SMS code.",
     "What is the status of PRJ-003?": "PRJ-003 (Legacy System Migration) is currently in the 'PDD Draft' stage. Leading manager is Robert Wilson.",
-    "Submit change request for login flow": "I've drafted a Change Request (CR-892) for the login flow modifications. Would you like me to route this to the assigned Business Analyst for review?"
+    "Submit change request for login flow": "I've drafted a Change Request (CR-892) for the login flow modifications. Would you like me to route this to the assigned Business User for review?"
 };
 
 export default function Chatbot() {
@@ -168,8 +168,8 @@ export default function Chatbot() {
                                         </div>
                                         <div>
                                             <div className={`p-3.5 rounded-2xl text-sm leading-relaxed ${msg.sender === 'user'
-                                                    ? 'bg-white border border-slate-200 text-slate-800 shadow-sm rounded-tr-sm'
-                                                    : 'bg-[#F0F7FF] border border-blue-100 text-slate-800 shadow-sm rounded-tl-sm'
+                                                ? 'bg-white border border-slate-200 text-slate-800 shadow-sm rounded-tr-sm'
+                                                : 'bg-[#F0F7FF] border border-blue-100 text-slate-800 shadow-sm rounded-tl-sm'
                                                 }`}>
                                                 {msg.text.includes('```') ? (
                                                     <pre className="bg-slate-900 text-blue-300 p-3 rounded-lg text-xs overflow-x-auto mt-1 border border-slate-800">

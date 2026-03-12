@@ -40,7 +40,7 @@ export default function LoginPage() {
 
             if (dbUser.status === "Approved") {
                 // Set authenticated cookie session
-                const user = loginUser(dbUser.role, dbUser.name);
+                const user = loginUser(dbUser.role, dbUser.name, dbUser.name);
                 router.push(user.dashboardPath);
             } else {
                 setError("Account inactive or suspended.");
