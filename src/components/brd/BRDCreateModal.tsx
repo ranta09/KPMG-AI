@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, FileText, Sparkles, Mic, Video, File, Download, Eye } from "lucide-react";
-import { BRDRecord, useBRDStore } from "@/lib/brdStore";
+import { BRDRecord, useBRDStore, makeSections } from "@/lib/brdStore";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { BRDChatAssistant } from "./BRDChatAssistant";
 
@@ -153,6 +153,25 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
         const now = new Date().toISOString();
         const fileNames = Object.values(uploadedFiles).filter(Boolean).map(f => f!.name);
 
+        const brdInput = {
+            projectName: form.projectName,
+            client: "KPMG Global Operations",
+            preparedBy: "Ujjwal Gupta",
+            organization: "KPMG Global",
+            clientReviewers: "Jane Smith",
+            projectCode: form.projectCode,
+            customVersion: form.version,
+            objective: form.requirement,
+            problemStatement: form.requirement,
+            currentProcess: "To be defined during discovery workshops.",
+            desiredOutcome: "Fully optimised process replacing current manual approach.",
+            stakeholders: "Key business sponsors and process owners",
+            kpis: "Processing efficiency, error rate reduction, system availability > 99.9%",
+            constraints: "Implementation to align with business strategy.",
+            sapModule: form.subCategory,
+            uploadedFiles: fileNames,
+        };
+
         const newBRD: BRDRecord = {
             id: `BRD-${String(Math.floor(Math.random() * 900) + 100)}`,
             projectCode: form.projectCode,
@@ -163,31 +182,14 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
             updatedAt: now,
             createdBy: "Ujjwal Gupta",
             isLocked: false,
-            input: {
-                projectName: form.projectName,
-                projectCode: form.projectCode,
-                customVersion: form.version,
-                objective: form.requirement,
-                problemStatement: form.requirement,
-                currentProcess: "To be defined during discovery workshops.",
-                desiredOutcome: "Fully optimised process replacing current manual approach.",
-                stakeholders: "Key business sponsors and process owners",
-                kpis: "Processing efficiency, error rate reduction, system availability > 99.9%",
-                constraints: "Implementation to align with business strategy.",
-                sapModule: form.subCategory,
-                uploadedFiles: fileNames,
-            },
-            sections: {
-                executiveSummary: `This Business Requirement Document was generated for the "${form.title}" initiative targeting the ${form.subCategory} (${form.mainCategory}) stack.`,
-                businessContext: `The business has identified a requirement to leverage ${form.subCategory} capabilities to address the following:\n\n${form.requirement}`,
-                scope: `**In Scope:**\n- Implementation of ${form.subCategory} to address the stated requirement\n- Integration with core backend systems\n- User acceptance testing\n- Training for end users`,
-                processFlow: `**Current State:** Manual processes requiring improvement.\n\n**Future State:** Fully integrated ${form.subCategory} solution delivering the desired outcome.`,
-                techStackMapping: `| Component | Technology | Function |\n|---|---|---|\n| Primary Stack | ${form.subCategory} | Core requirement delivery |\n| Category | ${form.mainCategory} | Solution architecture |`,
-                functionalRequirements: `FR-001: System shall support end-to-end process automation.\nFR-002: Real-time reporting shall provide operational visibility.`,
-                nonFunctionalRequirements: `NFR-001: System availability ≥ 99.9%.\nNFR-002: All data encrypted in transit and at rest.`,
-                acceptanceCriteria: `AC-001: All functional requirements pass UAT.\nAC-002: Formal sign-off obtained from Business Sponsor.`,
-                risksAndAssumptions: `**Key Risks:**\n⚠️ R-001: Stakeholder availability for workshops.\n\n**Assumptions:**\nA-001: ${form.subCategory} environments are available at start.`,
-            },
+            input: brdInput,
+            sections: makeSections({
+                input: brdInput,
+                title: form.title,
+                mainCategory: form.mainCategory,
+                subCategory: form.subCategory,
+                version: form.version,
+            }),
             comments: [],
             versionHistory: [{
                 version: form.version || "v1.0",
@@ -196,20 +198,7 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                 updatedAt: now,
                 createdBy: "Ujjwal Gupta",
                 changeSummary: `Initial draft generated by BRD Generator agent. Build Type: ${form.mainCategory} / ${form.subCategory}.`,
-                input: {
-                    projectName: form.projectName,
-                    projectCode: form.projectCode,
-                    customVersion: form.version,
-                    objective: form.requirement,
-                    problemStatement: form.requirement,
-                    currentProcess: "To be defined during discovery workshops.",
-                    desiredOutcome: "Fully optimised process replacing current manual approach.",
-                    stakeholders: "Key business sponsors and process owners",
-                    kpis: "Processing efficiency, error rate reduction, system availability > 99.9%",
-                    constraints: "Implementation to align with business strategy.",
-                    sapModule: form.subCategory,
-                    uploadedFiles: fileNames,
-                },
+                input: brdInput,
                 sections: {} as any,
             }],
         };
@@ -249,8 +238,25 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                                 onComplete={(data, refs) => {
                                     setForm(data);
                                     setSelectedRefBRDs(refs);
-                                    // Trigger submission logic
                                     const now = new Date().toISOString();
+                                    const chatInput = {
+                                        projectName: data.projectName,
+                                        client: "KPMG Global Operations",
+                                        preparedBy: "Ujjwal Gupta",
+                                        organization: "KPMG Global",
+                                        clientReviewers: "Jane Smith",
+                                        projectCode: data.projectCode,
+                                        customVersion: data.version,
+                                        objective: data.requirement,
+                                        problemStatement: data.requirement,
+                                        currentProcess: "To be defined during discovery workshops.",
+                                        desiredOutcome: "Fully optimised process replacing current manual approach.",
+                                        stakeholders: "Key business sponsors and process owners",
+                                        kpis: "Processing efficiency, error rate reduction, system availability > 99.9%",
+                                        constraints: "Implementation to align with business strategy.",
+                                        sapModule: data.subCategory,
+                                        uploadedFiles: [],
+                                    };
                                     const newBRD: BRDRecord = {
                                         id: `BRD-${String(Math.floor(Math.random() * 900) + 100)}`,
                                         projectCode: data.projectCode,
@@ -261,31 +267,14 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                                         updatedAt: now,
                                         createdBy: "Ujjwal Gupta",
                                         isLocked: false,
-                                        input: {
-                                            projectName: data.projectName,
-                                            projectCode: data.projectCode,
-                                            customVersion: data.version,
-                                            objective: data.requirement,
-                                            problemStatement: data.requirement,
-                                            currentProcess: "To be defined during discovery workshops.",
-                                            desiredOutcome: "Fully optimised process replacing current manual approach.",
-                                            stakeholders: "Key business sponsors and process owners",
-                                            kpis: "Processing efficiency, error rate reduction, system availability > 99.9%",
-                                            constraints: "Implementation to align with business strategy.",
-                                            sapModule: data.subCategory,
-                                            uploadedFiles: [],
-                                        },
-                                        sections: {
-                                            executiveSummary: `This Business Requirement Document was generated for the "${data.title}" initiative targeting the ${data.subCategory} (${data.mainCategory}) stack.`,
-                                            businessContext: `The business has identified a requirement to leverage ${data.subCategory} capabilities to address the following:\n\n${data.requirement}`,
-                                            scope: `**In Scope:**\n- Implementation of ${data.subCategory} to address the stated requirement\n- Integration with core backend systems\n- User acceptance testing\n- Training for end users`,
-                                            processFlow: `**Current State:** Manual processes requiring improvement.\n\n**Future State:** Fully integrated ${data.subCategory} solution delivering the desired outcome.`,
-                                            techStackMapping: `| Component | Technology | Function |\n|---|---|---|\n| Primary Stack | ${data.subCategory} | Core requirement delivery |\n| Category | ${data.mainCategory} | Solution architecture |`,
-                                            functionalRequirements: `FR-001: System shall support end-to-end process automation.\nFR-002: Real-time reporting shall provide operational visibility.`,
-                                            nonFunctionalRequirements: `NFR-001: System availability ≥ 99.9%.\nNFR-002: All data encrypted in transit and at rest.`,
-                                            acceptanceCriteria: `AC-001: All functional requirements pass UAT.\nAC-002: Formal sign-off obtained from Business Sponsor.`,
-                                            risksAndAssumptions: `**Key Risks:**\n⚠️ R-001: Stakeholder availability for workshops.\n\n**Assumptions:**\nA-001: ${data.subCategory} environments are available at start.`,
-                                        },
+                                        input: chatInput,
+                                        sections: makeSections({
+                                            input: chatInput,
+                                            title: data.title,
+                                            mainCategory: data.mainCategory,
+                                            subCategory: data.subCategory,
+                                            version: data.version,
+                                        }),
                                         comments: [],
                                         versionHistory: [{
                                             version: data.version || "v1.0",
@@ -294,20 +283,7 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                                             updatedAt: now,
                                             createdBy: "Ujjwal Gupta",
                                             changeSummary: `Initial draft generated by BRD Generator agent via AI Chat.`,
-                                            input: {
-                                                projectName: data.projectName,
-                                                projectCode: data.projectCode,
-                                                customVersion: data.version,
-                                                objective: data.requirement,
-                                                problemStatement: data.requirement,
-                                                currentProcess: "To be defined during discovery workshops.",
-                                                desiredOutcome: "Fully optimised process replacing current manual approach.",
-                                                stakeholders: "Key business sponsors and process owners",
-                                                kpis: "Processing efficiency, error rate reduction, system availability > 99.9%",
-                                                constraints: "Implementation to align with business strategy.",
-                                                sapModule: data.subCategory,
-                                                uploadedFiles: [],
-                                            },
+                                            input: chatInput,
                                             sections: {} as any,
                                         }],
                                     };

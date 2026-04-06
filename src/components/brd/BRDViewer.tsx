@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, History, FileText, Download, Edit3, Check, X, Lock, Send, RotateCcw, Clock, Code, HardDrive, File as FileIcon, ChevronDown, ChevronUp, Play, Plus, UserPlus } from "lucide-react";
-import { BRDRecord, BRDSections, BRDVersion } from "@/lib/brdStore";
+import { MessageSquare, History, FileText, Download, Edit3, Check, X, Lock, Send, RotateCcw, Clock, Code, HardDrive, File as FileIcon, ChevronDown, ChevronUp, Play, Plus, UserPlus, Sparkles, Trash2, Settings, Eye, EyeOff } from "lucide-react";
+import { BRDRecord, BRDSections, BRDVersion, useBRDStore } from "@/lib/brdStore";
+import { exportBRDToWord } from "@/lib/exportBRDToWord";
 import { getLoggedInUser } from "@/lib/auth";
 import BRDRevisionModal from "./BRDRevisionModal";
 import ReviewEmailModal from "./ReviewEmailModal";
@@ -20,15 +21,25 @@ interface BRDViewerProps {
 type Tab = "document" | "history" | "comments";
 
 const SECTIONS: { key: keyof BRDSections; label: string; icon: string }[] = [
-    { key: "executiveSummary", label: "Executive Summary", icon: "📋" },
-    { key: "businessContext", label: "Business Context", icon: "🏢" },
-    { key: "scope", label: "Scope", icon: "🎯" },
-    { key: "processFlow", label: "Process Flow", icon: "🔄" },
-    { key: "techStackMapping", label: "Build Type Mapping", icon: "🗺️" },
-    { key: "functionalRequirements", label: "Functional Requirements", icon: "✅" },
-    { key: "nonFunctionalRequirements", label: "Non-Functional Requirements", icon: "⚙️" },
-    { key: "acceptanceCriteria", label: "Acceptance Criteria", icon: "🏁" },
-    { key: "risksAndAssumptions", label: "Risks & Assumptions", icon: "⚠️" },
+    { key: "documentControl", label: "1. Document Control", icon: "📑" },
+    { key: "executiveSummary", label: "2. Executive Summary", icon: "📋" },
+    { key: "purposeAndScope", label: "3. Purpose and Scope", icon: "🎯" },
+    { key: "systemLandscape", label: "4. System Landscape", icon: "🌐" },
+    { key: "businessProcessOverview", label: "5. Business Process Overview", icon: "🔄" },
+    { key: "detailedBusinessProcess", label: "6. Detailed Business Process", icon: "🔍" },
+    { key: "businessRequirements", label: "7. Business Requirements", icon: "💼" },
+    { key: "functionalRequirements", label: "8. Functional Requirements", icon: "✅" },
+    { key: "ricefwClassification", label: "9. RICEFW Classification", icon: "📊" },
+    { key: "interfaceDesign", label: "10. Interface Design", icon: "🔌" },
+    { key: "dataRequirements", label: "11. Data Requirements", icon: "💾" },
+    { key: "securityAndAuthorization", label: "12. Security and Authorization", icon: "🔐" },
+    { key: "reportingRequirements", label: "13. Reporting Requirements", icon: "📈" },
+    { key: "errorHandling", label: "14. Error Handling", icon: "⚠️" },
+    { key: "performanceRequirements", label: "15. Performance Requirements", icon: "🚀" },
+    { key: "testStrategy", label: "16. Test Strategy", icon: "🧪" },
+    { key: "transportManagement", label: "17. Transport Management", icon: "🚛" },
+    { key: "openPoints", label: "18. Open Points", icon: "❓" },
+    { key: "appendices", label: "19. Appendices", icon: "📁" },
 ];
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; border: string }> = {
@@ -62,6 +73,155 @@ function getTimelineIndex(status: string) {
     return 0;
 }
 
+// ─── Rich Markdown Renderer ──────────────────────────────────────────────
+function RichContent({ text }: { text: string }) {
+    const lines = text.split("\n");
+    const elements: React.ReactNode[] = [];
+    let i = 0;
+    let key = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+
+        // ── Markdown Table ───────────────────────────────────────────────
+        if (line.trim().startsWith("|")) {
+            const tableLines: string[] = [];
+            while (i < lines.length && lines[i].trim().startsWith("|")) {
+                tableLines.push(lines[i]);
+                i++;
+            }
+            // Parse rows, skip separator rows
+            const rows = tableLines
+                .filter(l => !/^\|[\s\-:|]+\|$/.test(l.trim()))
+                .map(l => l.split("|").slice(1, -1).map(c => c.trim()));
+
+            if (rows.length > 0) {
+                const [header, ...body] = rows;
+                elements.push(
+                    <div key={key++} className="overflow-x-auto my-3 rounded-xl border border-slate-200 shadow-sm">
+                        <table className="w-full text-xs border-collapse">
+                            <thead>
+                                <tr className="bg-[#00338D]">
+                                    {header.map((cell, ci) => (
+                                        <th key={ci} className="px-3 py-2.5 text-left text-white font-bold border-r border-[#00338D]/30 last:border-r-0 whitespace-nowrap">
+                                            {cell}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {body.map((row, ri) => (
+                                    <tr key={ri} className={ri % 2 === 0 ? "bg-white" : "bg-slate-50/80"}>
+                                        {row.map((cell, ci) => (
+                                            <td key={ci} className="px-3 py-2 text-slate-700 border-r border-slate-100 last:border-r-0 border-t border-slate-100">
+                                                <InlineMarkdown text={cell} />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+            }
+            continue;
+        }
+
+        // ── Bold heading line: **Text** (entire line bold) ───────────────
+        if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
+            const text = line.trim().replace(/\*\*/g, "");
+            elements.push(
+                <h4 key={key++} className="text-[13px] font-bold text-[#00338D] mt-5 mb-2 tracking-tight">
+                    {text}
+                </h4>
+            );
+            i++;
+            continue;
+        }
+
+        // ── Bullet point (- or •) ───────────────────────────────────────
+        if (/^\s*[-•]\s/.test(line)) {
+            const bulletItems: string[] = [];
+            while (i < lines.length && /^\s*[-•]\s/.test(lines[i])) {
+                bulletItems.push(lines[i].replace(/^\s*[-•]\s*/, ""));
+                i++;
+            }
+            elements.push(
+                <ul key={key++} className="my-2 space-y-1 ml-1">
+                    {bulletItems.map((item, bi) => (
+                        <li key={bi} className="flex items-start gap-2 text-sm text-slate-700 leading-relaxed">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#00338D] mt-2 flex-shrink-0" />
+                            <span><InlineMarkdown text={item} /></span>
+                        </li>
+                    ))}
+                </ul>
+            );
+            continue;
+        }
+
+        // ── Numbered list (1. item, BR-001:, FR-001:, etc.) ─────────────
+        if (/^\s*(\d+\.)\s/.test(line)) {
+            const numberedItems: { num: string; text: string }[] = [];
+            while (i < lines.length && /^\s*(\d+\.)\s/.test(lines[i])) {
+                const match = lines[i].match(/^\s*(\d+\.)\s*(.*)/);
+                if (match) numberedItems.push({ num: match[1], text: match[2] });
+                i++;
+            }
+            elements.push(
+                <ol key={key++} className="my-2 space-y-1.5 ml-1">
+                    {numberedItems.map((item, ni) => (
+                        <li key={ni} className="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed">
+                            <span className="w-5 h-5 rounded-full bg-[#00338D]/10 text-[#00338D] text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                                {item.num.replace(".", "")}
+                            </span>
+                            <span><InlineMarkdown text={item.text} /></span>
+                        </li>
+                    ))}
+                </ol>
+            );
+            continue;
+        }
+
+        // ── Empty line → spacer ─────────────────────────────────────────
+        if (line.trim() === "") {
+            elements.push(<div key={key++} className="h-2" />);
+            i++;
+            continue;
+        }
+
+        // ── Regular paragraph (may contain inline **bold**) ─────────────
+        elements.push(
+            <p key={key++} className="text-sm text-slate-700 leading-relaxed my-1">
+                <InlineMarkdown text={line} />
+            </p>
+        );
+        i++;
+    }
+
+    return <>{elements}</>;
+}
+
+// ── Inline Markdown (bold, italic) ───────────────────────────────────────
+function InlineMarkdown({ text }: { text: string }) {
+    if (!text.includes("**") && !text.includes("*")) return <>{text}</>;
+
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/);
+    return (
+        <>
+            {parts.map((part, i) => {
+                if (part.startsWith("**") && part.endsWith("**")) {
+                    return <strong key={i} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+                }
+                if (part.startsWith("*") && part.endsWith("*") && !part.startsWith("**")) {
+                    return <em key={i} className="italic text-slate-600">{part.slice(1, -1)}</em>;
+                }
+                return <span key={i}>{part}</span>;
+            })}
+        </>
+    );
+}
+
+// ─── Editable Section Component ──────────────────────────────────────────
 function EditableSection({ value, isLocked, sectionKey, onSave, onAddComment }: {
     value: string; isLocked: boolean; sectionKey: string; onSave: (v: string) => void; onAddComment?: (section: string) => void;
 }) {
@@ -78,8 +238,8 @@ function EditableSection({ value, isLocked, sectionKey, onSave, onAddComment }: 
                     <textarea
                         value={draft}
                         onChange={e => setDraft(e.target.value)}
-                        rows={6}
-                        className="w-full px-4 py-3 border-2 border-[#00338D] rounded-xl text-sm text-slate-700 outline-none resize-none bg-blue-50/30 focus:bg-white transition-all font-mono"
+                        rows={12}
+                        className="w-full px-4 py-3 border-2 border-[#00338D] rounded-xl text-sm text-slate-700 outline-none resize-y bg-blue-50/30 focus:bg-white transition-all font-mono leading-relaxed"
                     />
                     <div className="flex gap-2 mt-2">
                         <button onClick={save} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00338D] text-white text-xs font-semibold rounded-lg interactive">
@@ -92,8 +252,10 @@ function EditableSection({ value, isLocked, sectionKey, onSave, onAddComment }: 
                 </div>
             ) : (
                 <div className="relative">
-                    <pre className="whitespace-pre-wrap text-sm text-slate-600 leading-relaxed font-sans bg-slate-50/50 p-4 rounded-xl border border-slate-100 print-content">{value}</pre>
-                    <div className="absolute top-2 right-2 flex gap-2 no-print opacity-0 group-hover:opacity-100 transition-all">
+                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm print-content">
+                        <RichContent text={value} />
+                    </div>
+                    <div className="absolute top-3 right-3 flex gap-2 no-print opacity-0 group-hover:opacity-100 transition-all">
                         {onAddComment && (
                             <button
                                 onClick={() => onAddComment(sectionKey)}
@@ -129,6 +291,8 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
     const [expandedVersion, setExpandedVersion] = useState<string | null>(null);
     const [showReviewEmailModal, setShowReviewEmailModal] = useState(false);
     const [showAssignDeveloperModal, setShowAssignDeveloperModal] = useState(false);
+    const [showManageSections, setShowManageSections] = useState(false);
+    const { toggleSectionVisibility } = useBRDStore();
     const user = getLoggedInUser();
     const isProgramManager = user?.role === "program-manager";
 
@@ -315,12 +479,20 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
                                 )}
                             </div>
                         )}
-                        <button
-                            onClick={handleExportPDF}
-                            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition-all interactive ml-auto"
-                        >
-                            <Download size={13} /> Export PDF
-                        </button>
+                        <div className="flex items-center gap-2 ml-auto">
+                            <button
+                                onClick={() => exportBRDToWord(brd)}
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-[#00338D]/30 text-[#00338D] hover:bg-[#00338D]/5 rounded-xl transition-all interactive"
+                            >
+                                <FileIcon size={13} /> Export Word
+                            </button>
+                            <button
+                                onClick={handleExportPDF}
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition-all interactive"
+                            >
+                                <Download size={13} /> Export PDF
+                            </button>
+                        </div>
                     </div>
 
                     {showRevisionModal && (
@@ -425,40 +597,73 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
                                 </div>
                             </div>
 
-                            {/* User Input Section */}
-                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 print:bg-white print:border-none print:p-0">
-                                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
-                                    <FileText size={16} className="text-[#00A3E0]" /> Form Input
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Standard Metadata Header */}
+                            <div className="bg-white border-2 border-[#00338D]/10 rounded-2xl p-8 mb-8 shadow-sm space-y-6 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-5">
+                                    <FileText size={120} className="text-[#00338D]" />
+                                </div>
+                                
+                                <div className="border-b-2 border-[#00338D] pb-4">
+                                    <h2 className="text-2xl font-black text-[#00338D] tracking-tight">Business Requirements Document (BRD)</h2>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                                     <div className="space-y-4">
                                         <div>
-                                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Document Title</p>
-                                            <p className="text-sm font-semibold text-slate-800">{brd.input.projectName}</p>
+                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Project</p>
+                                            <p className="text-sm font-bold text-slate-800">{brd.projectName}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Build Type Mapping</p>
-                                            <p className="text-sm font-semibold text-slate-800">{brd.input.sapModule || "N/A"}</p>
+                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Client</p>
+                                            <p className="text-sm font-bold text-slate-800">{brd.input.client || "Not Specified"}</p>
                                         </div>
-
                                     </div>
                                     <div className="space-y-4">
                                         <div>
-                                            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Raw Business Requirement</p>
-                                            <p className="text-sm text-slate-600 leading-relaxed bg-white p-3 rounded-lg border border-slate-200">{brd.input.problemStatement}</p>
+                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Prepared By</p>
+                                            <p className="text-sm font-bold text-slate-800">{brd.input.preparedBy || brd.createdBy}</p>
                                         </div>
-                                        {brd.input.uploadedFiles && brd.input.uploadedFiles.length > 0 && (
-                                            <div>
-                                                <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">Attached Material</p>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {brd.input.uploadedFiles.map(f => (
-                                                        <div key={f} className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded text-xs font-medium text-slate-600">
-                                                            <FileIcon size={12} className="text-purple-600" /> {f}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+                                        <div>
+                                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Organization</p>
+                                            <p className="text-sm font-bold text-slate-800">{brd.input.organization || "KPMG"}</p>
+                                        </div>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Client Reviewers</p>
+                                        <p className="text-sm font-bold text-slate-800">{brd.input.clientReviewers || "TBD"}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Table of Contents (Content) */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-8 no-print">
+                                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
+                                    <FileText size={16} className="text-[#00338D]" /> Content
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+                                    {SECTIONS.filter(s => !brd.hiddenSections?.includes(s.key)).map((sec, idx) => (
+                                        <div key={sec.key} className="flex justify-between items-center text-xs group cursor-default">
+                                            <span className="text-slate-600 font-medium group-hover:text-[#00338D] transition-colors">{sec.label}</span>
+                                            <span className="flex-1 border-b border-dotted border-slate-300 mx-2 mb-1" />
+                                            <span className="text-slate-400 font-mono">{idx + 1 < 10 ? `0${idx + 1}` : idx + 1}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* User Input Section (Original Requirement) */}
+                            <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-5 mb-8 no-print">
+                                <h3 className="text-[10px] uppercase font-bold text-slate-400 mb-4 flex items-center gap-2">
+                                    <Sparkles size={14} className="text-amber-500" /> AI Source Analysis
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Build Type Mapping</p>
+                                        <p className="text-sm font-semibold text-slate-700">{brd.input.sapModule || "N/A"}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Raw Requirement</p>
+                                        <p className="text-xs text-slate-600 leading-relaxed bg-white p-3 rounded-lg border border-slate-100 italic">"{brd.input.problemStatement}"</p>
                                     </div>
                                 </div>
                             </div>
@@ -467,8 +672,49 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
                             <div className="space-y-6">
                                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-2">
                                     <Check size={16} className="text-emerald-500" /> Generated BRD Content
+                                    {!isReadOnly && (
+                                        <div className="ml-auto relative no-print">
+                                            <button 
+                                                onClick={() => setShowManageSections(!showManageSections)}
+                                                className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold text-slate-500 hover:text-[#00338D] hover:bg-[#00338D]/5 rounded-md transition-all"
+                                            >
+                                                <Settings size={12} /> Manage Sections
+                                            </button>
+                                            
+                                            <AnimatePresence>
+                                                {showManageSections && (
+                                                    <motion.div 
+                                                        initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                        exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                                                        className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-3"
+                                                    >
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-2">Visibility Settings</p>
+                                                        <div className="space-y-1 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                                                            {SECTIONS.map(s => {
+                                                                const isHidden = brd.hiddenSections?.includes(s.key);
+                                                                return (
+                                                                    <button
+                                                                        key={s.key}
+                                                                        onClick={() => toggleSectionVisibility(brd.id, s.key)}
+                                                                        className="w-full flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg transition-all group/item"
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-xs">{s.icon}</span>
+                                                                            <span className={`text-[10px] font-bold ${isHidden ? "text-slate-400 line-through" : "text-slate-700"}`}>{s.label}</span>
+                                                                        </div>
+                                                                        {isHidden ? <EyeOff size={12} className="text-slate-300" /> : <Eye size={12} className="text-emerald-500" />}
+                                                                    </button>
+                                                                )
+                                                            })}
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    )}
                                 </h3>
-                                {SECTIONS.map((sec, i) => (
+                                {SECTIONS.filter(s => !brd.hiddenSections?.includes(s.key)).map((sec, i) => (
                                     <motion.div
                                         key={sec.key}
                                         initial={{ opacity: 0, y: 12 }}
@@ -479,6 +725,15 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
                                             <span className="text-lg no-print">{sec.icon}</span>
                                             <h3 className="font-bold text-slate-900 text-sm tracking-tight">{sec.label}</h3>
                                             <div className="flex-1 h-px bg-slate-100 ml-2 no-print" />
+                                            {!isReadOnly && (
+                                                <button
+                                                    onClick={() => toggleSectionVisibility(brd.id, sec.key)}
+                                                    title="Delete this section"
+                                                    className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all no-print group/del"
+                                                >
+                                                    <Trash2 size={14} className="group-hover/del:scale-110 transition-transform" />
+                                                </button>
+                                            )}
                                         </div>
                                         <EditableSection
                                             value={sections[sec.key]}
@@ -653,30 +908,60 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
 
                 {/* Form Input Section for Print */}
                 <div className="space-y-4 mb-8">
-                    <h3 className="print-section-title">Form Input</h3>
-                    <div className="grid grid-cols-2 gap-8">
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-slate-400">Document Title</p>
-                            <p className="text-sm font-semibold">{brd.input.projectName}</p>
+                    <div className="border-b-4 border-[#00338D] pb-4 mb-8 text-center uppercase tracking-widest font-black text-3xl text-[#00338D]">
+                        Business Requirements Document (BRD)
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-8 border border-slate-200 p-8 rounded-xl bg-slate-50/10">
+                        <div className="space-y-6">
+                            <div>
+                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Project</p>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-1">{brd.projectName}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Client</p>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-1">{brd.input.client || "KPMG Operations"}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-[10px] uppercase font-bold text-slate-400">Build Type Mapping</p>
-                            <p className="text-sm font-semibold">{brd.input.sapModule || "N/A"}</p>
+                        <div className="space-y-6">
+                            <div>
+                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Prepared By</p>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-1">{brd.input.preparedBy || brd.createdBy}</p>
+                            </div>
+                            <div>
+                                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Organization</p>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-1">{brd.input.organization || "KPMG"}</p>
+                            </div>
+                        </div>
+                        <div className="col-span-2">
+                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Client Reviewers</p>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-1">{brd.input.clientReviewers || "TBD"}</p>
                         </div>
                     </div>
-                    <div className="mt-4">
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Raw Business Requirement</p>
-                        <p className="print-content">{brd.input.problemStatement}</p>
+
+                    <div className="mt-12 page-break-after-always">
+                        <h3 className="print-section-title">Content</h3>
+                        <div className="space-y-2 mt-4 transition-all">
+                            {SECTIONS.filter(s => !brd.hiddenSections?.includes(s.key)).map((sec, idx) => (
+                                <div key={sec.key} className="flex justify-between items-center text-sm border-b border-slate-100 pb-1">
+                                    <span className="font-bold text-[#00338D]">{sec.label}</span>
+                                    <span className="flex-1 border-b border-dotted border-slate-300 mx-4 mb-1" />
+                                    <span className="font-mono text-slate-400">Page {idx + 2}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
                 {/* Generated Sections for Print */}
                 <div className="space-y-8">
                     <h3 className="print-section-title">Generated BRD Content</h3>
-                    {SECTIONS.map((sec) => (
+                    {SECTIONS.filter(s => !brd.hiddenSections?.includes(s.key)).map((sec) => (
                         <div key={sec.key} className="print-break-inside-avoid">
                             <h3 className="print-section-title" style={{ marginTop: '15pt' }}>{sec.label}</h3>
-                            <pre className="print-content">{sections[sec.key]}</pre>
+                            <div className="print-content">
+                                <RichContent text={sections[sec.key]} />
+                            </div>
                         </div>
                     ))}
                 </div>

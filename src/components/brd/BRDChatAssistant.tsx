@@ -714,15 +714,27 @@ export function BRDChatAssistant({ onComplete, onSwitchToForm, onClose, projectL
                                                         className="space-y-2 overflow-hidden border-t border-slate-100 pt-3"
                                                     >
                                                         {[
-                                                            "Project Overview & Strategic Alignment",
-                                                            "Stakeholder Matrix & Requirements",
-                                                            "Process Performance Indicators (PPIs)",
-                                                            "Target Functional Design",
-                                                            "Data Governance & Migration Strategy",
-                                                            "Security & Compliance Standards",
-                                                            "Acceptance Criteria & Success Metrics"
+                                                            "1. Document Control",
+                                                            "2. Executive Summary",
+                                                            "3. Purpose and Scope",
+                                                            "4. System Landscape",
+                                                            "5. Business Process Overview",
+                                                            "6. Detailed Business Process",
+                                                            "7. Business Requirements",
+                                                            "8. Functional Requirements",
+                                                            "9. RICEFW Classification",
+                                                            "10. Interface Design",
+                                                            "11. Data Requirements",
+                                                            "12. Security and Authorization",
+                                                            "13. Reporting Requirements",
+                                                            "14. Error Handling",
+                                                            "15. Performance Requirements",
+                                                            "16. Test Strategy",
+                                                            "17. Transport Management",
+                                                            "18. Open Points",
+                                                            "19. Appendices"
                                                         ].map((s, i) => (
-                                                            <div key={i} className="flex gap-2 items-center text-[10px] text-slate-600 font-medium">
+                                                            <div key={i} className="flex gap-2 items-center text-[9px] text-slate-600 font-bold">
                                                                 <div className="w-1 h-1 rounded-full bg-[#00338D]/40" />
                                                                 {s}
                                                             </div>
