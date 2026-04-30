@@ -93,7 +93,7 @@ async function mermaidToSvgBytes(chart: string): Promise<{ svg: Uint8Array; png:
                     if (classFillMap[cls]) return `<text${attrs} fill="${classFillMap[cls]}">`;
                 }
                 // node labels default to white; edge labels to dark
-                const isEdge = classes.some(c => c.includes("edge") || c.includes("label"));
+                const isEdge = classes.some((c: string) => c.includes("edge") || c.includes("label"));
                 return `<text${attrs} fill="${isEdge ? "#003087" : "#ffffff"}">`;
             }
             return `<text${attrs} fill="#003087">`;
