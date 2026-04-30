@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, FileText, Sparkles, Mic, Video, File, Download, Eye } from "lucide-react";
-import { BRDRecord, useBRDStore, makeSections } from "@/lib/brdStore";
+import { X, Check, FileText, Sparkles, Mic, Video, File, Download, Eye, Upload } from "lucide-react";
+import { BRDRecord, BRDSections, useBRDStore, makeSections } from "@/lib/brdStore";
+import { parseWordTemplate } from "@/lib/parseWordTemplate";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { BRDChatAssistant } from "./BRDChatAssistant";
 
@@ -47,6 +48,12 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
     const [stage] = useState<Stage>("form");
     const [interactionMode, setInteractionMode] = useState<"chat" | "form">("chat");
     const [uploadedFiles, setUploadedFiles] = useState<Record<string, File | null>>({ audio: null, video: null, document: null });
+    const [templateSections, setTemplateSections] = useState<Partial<BRDSections> | null>(null);
+    const [templateFileName, setTemplateFileName] = useState<string | null>(null);
+    const [templateSectionsFound, setTemplateSectionsFound] = useState<number>(0);
+    const [templatePlaceholders, setTemplatePlaceholders] = useState<string[]>([]);
+    const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
+    const [showPlaceholderModal, setShowPlaceholderModal] = useState(false);
     const [selectedRefBRDs, setSelectedRefBRDs] = useState<string[]>([]);
     const [referenceMode, setReferenceMode] = useState<"ai" | "existing">("ai");
     const [brdSearch, setBrdSearch] = useState("");
@@ -59,6 +66,8 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
         subCategory: "",
         requirement: "",
     });
+
+    const templateInputRef = useRef<HTMLInputElement>(null);
 
     const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> | string) => {
         const value = typeof e === "string" ? e : e.target.value;
@@ -80,16 +89,16 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
         if (e.target.files?.[0]) setUploadedFiles(prev => ({ ...prev, [type]: e.target.files![0] }));
     };
 
-    const handleGetRecommendation = async () => {
-        if (!form.requirement.trim()) return;
-
+    const handleGetRecommendation = async (fileName?: string) => {
         setIsRecommending(true);
         try {
             // Placeholder for the actual API call
             await new Promise(resolve => setTimeout(resolve, 2000));
             setRecommendation({
-                title: `Recommended: ${form.subCategory || form.mainCategory} Structure`,
-                description: `Optimized BRD format suggested based on your ${form.subCategory} requirements.`,
+                title: fileName ? `Template: ${fileName}` : `Recommended: ${form.subCategory || form.mainCategory} Structure`,
+                description: fileName 
+                    ? `Structural baseline extracted from your uploaded template: ${fileName}.`
+                    : `Optimized BRD format suggested based on your ${form.subCategory} requirements.`,
                 structure: [
                     "Project Overview & Strategic Alignment",
                     "Stakeholder Matrix & Requirements",
@@ -102,6 +111,43 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
             });
         } catch (error) {
             console.error("Failed to fetch recommendation:", error);
+        } finally {
+            setIsRecommending(false);
+        }
+    };
+
+    const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsRecommending(true);
+        setTemplateSections(null);
+        setTemplateFileName(null);
+
+        try {
+            const { sections, fileName, sectionsFound, placeholders } = await parseWordTemplate(file);
+            setTemplateSections(sections);
+            setTemplateFileName(fileName);
+            setTemplateSectionsFound(sectionsFound);
+            setTemplatePlaceholders(placeholders);
+            setPlaceholderValues(Object.fromEntries(placeholders.map(p => [p, ""])));
+            setRecommendation({
+                title: `Template: ${fileName}`,
+                description: sectionsFound > 0
+                    ? `${sectionsFound} section${sectionsFound !== 1 ? "s" : ""} extracted from template.`
+                    : `Template uploaded. Structure will be applied during generation.`,
+                structure: Object.keys(sections),
+            });
+            if (placeholders.length > 0) {
+                setShowPlaceholderModal(true);
+            }
+        } catch (err) {
+            console.error("Template parse error:", err);
+            setRecommendation({
+                title: `Template: ${file.name}`,
+                description: "Template uploaded. Structure will be applied during generation.",
+                structure: [],
+            });
         } finally {
             setIsRecommending(false);
         }
@@ -189,6 +235,8 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                 mainCategory: form.mainCategory,
                 subCategory: form.subCategory,
                 version: form.version,
+                templateSections: templateSections ?? undefined,
+                customPlaceholders: Object.keys(placeholderValues).length > 0 ? placeholderValues : undefined,
             }),
             comments: [],
             versionHistory: [{
@@ -209,7 +257,65 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
 
     const canSubmit = form.title.trim() && form.projectCode && form.mainCategory && form.subCategory && form.version.trim() && form.requirement.trim();
 
-    return createPortal(
+    const placeholderModal = showPlaceholderModal && createPortal(
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 16 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden"
+            >
+                {/* Header */}
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#00338D]/5 to-transparent">
+                    <div className="w-8 h-8 rounded-xl bg-[#00338D]/10 flex items-center justify-center flex-shrink-0">
+                        <FileText size={16} className="text-[#00338D]" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">Template Fields Detected</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Fill in the placeholder values found in your template</p>
+                    </div>
+                </div>
+
+                {/* Fields */}
+                <div className="p-5 space-y-3 max-h-72 overflow-y-auto">
+                    {templatePlaceholders.map((placeholder) => (
+                        <div key={placeholder}>
+                            <label className="block text-[11px] font-bold text-slate-600 mb-1 uppercase tracking-wide">
+                                {placeholder}
+                            </label>
+                            <input
+                                type="text"
+                                value={placeholderValues[placeholder] ?? ""}
+                                onChange={(e) =>
+                                    setPlaceholderValues(prev => ({ ...prev, [placeholder]: e.target.value }))
+                                }
+                                placeholder={`Enter ${placeholder}...`}
+                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00338D]/30 focus:border-[#00338D]/50 text-slate-800 placeholder-slate-300"
+                            />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Footer */}
+                <div className="flex gap-2 px-5 py-4 border-t border-slate-100 bg-slate-50">
+                    <button
+                        onClick={() => setShowPlaceholderModal(false)}
+                        className="flex-1 py-2 text-sm font-semibold text-slate-500 border border-slate-200 rounded-xl hover:bg-white transition-colors"
+                    >
+                        Skip
+                    </button>
+                    <button
+                        onClick={() => setShowPlaceholderModal(false)}
+                        className="flex-1 py-2 text-sm font-bold text-white bg-[#00338D] rounded-xl hover:bg-[#00266e] transition-colors"
+                    >
+                        Apply Values
+                    </button>
+                </div>
+            </motion.div>
+        </div>,
+        document.body
+    );
+
+    const mainPortal = createPortal(
         <AnimatePresence>
             <motion.div
                 key="brd-modal-backdrop"
@@ -223,7 +329,7 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.95, opacity: 0, y: 20 }}
                     transition={{ type: "spring", stiffness: 300, damping: 28 }}
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-xl h-[85vh] max-h-[720px] flex flex-col overflow-hidden border border-slate-200"
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[88vh] max-h-[800px] flex flex-col overflow-hidden border border-slate-200"
                     onClick={e => e.stopPropagation()}
                 >
                     {/* Content Area */}
@@ -242,9 +348,9 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                                     const chatInput = {
                                         projectName: data.projectName,
                                         client: "KPMG Global Operations",
-                                        preparedBy: "Ujjwal Gupta",
+                                        preparedBy: data.preparedBy || "KPMG Project Team",
                                         organization: "KPMG Global",
-                                        clientReviewers: "Jane Smith",
+                                        clientReviewers: data.reviewers || "",
                                         projectCode: data.projectCode,
                                         customVersion: data.version,
                                         objective: data.requirement,
@@ -268,13 +374,17 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                                         createdBy: "Ujjwal Gupta",
                                         isLocked: false,
                                         input: chatInput,
-                                        sections: makeSections({
-                                            input: chatInput,
-                                            title: data.title,
-                                            mainCategory: data.mainCategory,
-                                            subCategory: data.subCategory,
-                                            version: data.version,
-                                        }),
+                                        sections: data.aiGeneratedSections
+                                            ? { ...makeSections({ input: chatInput, title: data.title, mainCategory: data.mainCategory, subCategory: data.subCategory, version: data.version }), ...data.aiGeneratedSections }
+                                            : makeSections({
+                                                input: chatInput,
+                                                title: data.title,
+                                                mainCategory: data.mainCategory,
+                                                subCategory: data.subCategory,
+                                                version: data.version,
+                                                templateSections: data.templateSections ?? undefined,
+                                                customPlaceholders: data.customPlaceholders ?? undefined,
+                                            }),
                                         comments: [],
                                         versionHistory: [{
                                             version: data.version || "v1.0",
@@ -443,40 +553,45 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                                                     onClick={() => setReferenceMode("ai")}
                                                     className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${referenceMode === "ai" ? "bg-white text-[#00338D] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                                                 >
-                                                    <img src="/icons/tab-icon.png" alt="AI" className="w-3.5 h-3.5 object-contain" /> AI Recommendation
+                                                    <Upload size={13} className={referenceMode === "ai" ? "text-[#00338D]" : "text-slate-400"} /> Upload Template
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => setReferenceMode("existing")}
                                                     className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${referenceMode === "existing" ? "bg-white text-[#00338D] shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                                                 >
-                                                    <img src="/icons/tab-icon.png" alt="Existing" className="w-3.5 h-3.5 object-contain opacity-70" /> Existing BRDs
+                                                    <FileText size={13} className={referenceMode === "existing" ? "text-[#00338D]" : "text-slate-400"} /> Existing BRDs
                                                 </button>
                                             </div>
 
                                             {referenceMode === "ai" ? (
                                                 <>
                                                     {!recommendation && !isRecommending && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={handleGetRecommendation}
-                                                            disabled={!form.requirement.trim()}
-                                                            className="w-full p-6 border-2 border-dashed border-slate-200 rounded-2xl hover:border-[#00338D] hover:bg-slate-50 transition-all group flex flex-col items-center gap-2 text-center disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        >
-                                                            <div className="w-12 h-12 bg-[#00338D]/5 rounded-full flex items-center justify-center text-[#00338D] group-hover:scale-110 transition-transform shadow-inner">
-                                                                <Sparkles size={24} />
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-sm font-bold text-slate-700">Get Recommended Format</p>
-                                                                <p className="text-[10px] text-slate-400 mt-1">AI will analyze your inputs to suggest the best BRD structure</p>
-                                                            </div>
-                                                        </button>
+                                                        <>
+                                                            <label
+                                                                className="w-full p-6 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-[#00338D] hover:bg-slate-50 transition-all group flex flex-col items-center gap-2 text-center shadow-sm"
+                                                            >
+                                                                <input 
+                                                                    type="file" 
+                                                                    className="hidden" 
+                                                                    accept=".pdf,.doc,.docx"
+                                                                    onChange={handleTemplateUpload}
+                                                                />
+                                                                <div className="w-12 h-12 bg-[#00338D]/5 rounded-full flex items-center justify-center text-[#00338D] group-hover:scale-110 transition-transform shadow-inner">
+                                                                    <Upload size={24} />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm font-bold text-slate-700">Upload BRD Template</p>
+                                                                    <p className="text-[10px] text-slate-400 mt-1">Upload a previous BRD or template to use as a structural baseline</p>
+                                                                </div>
+                                                            </label>
+                                                        </>
                                                     )}
 
                                                     {isRecommending && (
                                                         <div className="w-full p-8 border-2 border-slate-100 rounded-2xl bg-slate-50/50 flex flex-col items-center gap-3 border-dashed">
                                                             <div className="w-10 h-10 border-4 border-[#00338D]/10 border-t-[#00338D] rounded-full animate-spin" />
-                                                            <p className="text-xs font-semibold text-slate-500 animate-pulse">Designing Recommended Structure...</p>
+                                                            <p className="text-xs font-semibold text-slate-500 animate-pulse">Processing Uploaded Template...</p>
                                                         </div>
                                                     )}
 
@@ -484,36 +599,40 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
                                                         <motion.div
                                                             initial={{ opacity: 0, y: 10 }}
                                                             animate={{ opacity: 1, y: 0 }}
-                                                            className="flex items-center gap-3 p-3 bg-white border border-[#00338D]/30 rounded-xl shadow-sm relative group overflow-hidden"
+                                                            className="flex flex-col gap-2 p-3 bg-white border border-[#00338D]/30 rounded-xl shadow-sm relative group overflow-hidden"
                                                         >
                                                             <div className="absolute top-0 right-0 w-2 h-full bg-[#00338D]/10" />
-
-                                                            <div className="w-4 h-4 rounded bg-[#00338D] flex items-center justify-center flex-shrink-0 shadow-sm shadow-[#00338D]/20 relative z-10">
-                                                                <Check size={10} className="text-white" />
-                                                            </div>
-                                                            <div className="flex-1 min-w-0 relative z-10">
-                                                                <div className="flex items-center justify-between">
-                                                                    <p className="text-xs font-semibold text-slate-700 truncate">{recommendation.title.replace('Recommended: ', '')}</p>
-                                                                    <span className="text-[8px] font-bold px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded border border-emerald-100 uppercase tracking-tighter">AI OPTIMIZED</span>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-4 h-4 rounded bg-[#00338D] flex items-center justify-center flex-shrink-0 shadow-sm shadow-[#00338D]/20 relative z-10">
+                                                                    <Check size={10} className="text-white" />
                                                                 </div>
-                                                                <div className="flex items-center gap-2 mt-0.5">
-                                                                    <p className="text-[10px] text-[#00338D] font-mono font-bold">BRD-AI-REC</p>
-                                                                    <span className="w-1 h-1 bg-slate-200 rounded-full" />
-                                                                    <div className="flex items-center gap-3">
-                                                                        <button type="button" onClick={() => setShowRecPreview(true)} className="text-[9px] font-bold text-slate-400 hover:text-[#00338D] flex items-center gap-1 transition-colors">
-                                                                            <Eye size={11} /> View Structure
-                                                                        </button>
-                                                                        <button type="button" onClick={handleDownloadWord} className="text-[9px] font-bold text-slate-400 hover:text-[#00338D] flex items-center gap-1 transition-colors">
-                                                                            <Download size={11} /> Download Word
-                                                                        </button>
+                                                                <div className="flex-1 min-w-0 relative z-10">
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <p className="text-xs font-semibold text-slate-700 truncate">{recommendation.title.replace('Recommended: ', '')}</p>
+                                                                        <span className="text-[8px] font-bold px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded border border-emerald-100 uppercase tracking-tighter whitespace-nowrap flex-shrink-0">TEMPLATE LOADED</span>
                                                                     </div>
+                                                                    <p className="text-[10px] text-slate-500 mt-0.5 leading-snug pr-2">{recommendation.description}</p>
                                                                 </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { setRecommendation(null); setTemplateSections(null); setTemplateFileName(null); setTemplateSectionsFound(0); }}
+                                                                    className="text-slate-300 hover:text-slate-500 transition-colors p-1 relative z-10 flex-shrink-0"
+                                                                    title="Remove template"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
                                                             </div>
-                                                            <button type="button" onClick={() => setRecommendation(null)} className="text-slate-300 hover:text-slate-500 transition-colors p-1 relative z-10">
-                                                                <X size={14} />
-                                                            </button>
 
-
+                                                            {/* Upload a different template */}
+                                                            <label className="flex items-center gap-1.5 text-[9px] font-bold text-[#00338D] hover:underline cursor-pointer w-fit pl-7 relative z-10">
+                                                                <input
+                                                                    type="file"
+                                                                    className="hidden"
+                                                                    accept=".pdf,.doc,.docx,.txt"
+                                                                    onChange={handleTemplateUpload}
+                                                                />
+                                                                ↑ Upload a different template
+                                                            </label>
                                                         </motion.div>
                                                     )}
                                                 </>
@@ -675,4 +794,9 @@ export default function BRDCreateModal({ onClose, onCreated }: BRDCreateModalPro
         </AnimatePresence>,
         document.body
     );
+
+    return <>
+        {placeholderModal}
+        {mainPortal}
+    </>;
 }

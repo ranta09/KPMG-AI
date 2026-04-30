@@ -1,6 +1,7 @@
 // ─── BRD Management Store ──────────────────────────────────────────────────
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { injectProjectData } from "./parseWordTemplate";
 
 export type BRDStatus = "Generating BRD" | "BRD Generated" | "BRD Review" | "Changes Requested" | "Approved" | "Development" | "UAT" | "Production" | "Archived";
 
@@ -93,10 +94,14 @@ interface MakeSectionsParams {
     mainCategory?: string;
     subCategory?: string;
     version?: string;
+    /** Sections extracted from an uploaded template file — only these sections are returned */
+    templateSections?: Partial<BRDSections>;
+    /** Custom placeholder values entered by user (e.g. { "Department": "Finance" }) */
+    customPlaceholders?: Record<string, string>;
 }
 
 export function makeSections(params: MakeSectionsParams): BRDSections {
-    const { input, title, mainCategory, subCategory, version } = params;
+    const { input, title, mainCategory, subCategory, version, templateSections, customPlaceholders } = params;
     const pName = title || input.projectName;
     const tech = subCategory || input.sapModule || "the target platform";
     const techCategory = mainCategory || "Enterprise Technology";
@@ -119,7 +124,15 @@ export function makeSections(params: MakeSectionsParams): BRDSections {
     const stakeholderList = stakeholders.split(",").map(s => s.trim()).filter(Boolean);
     const kpiList = kpis.split(",").map(s => s.trim()).filter(Boolean);
 
-    return {
+    // Parse "Name|Role, Name|Role" reviewer string into table rows
+    const reviewerRows = reviewers
+        ? reviewers.split(",").map(r => {
+            const [name, role] = r.split("|").map(s => s.trim());
+            return `| ${name || r.trim()} | ${role || "Reviewer"} | ${dateStr} |`;
+        }).join("\n")
+        : `| To be confirmed | Reviewer | ${dateStr} |`;
+
+    const generated: BRDSections = {
         documentControl:
 `| Field | Value |
 |---|---|
@@ -131,7 +144,11 @@ export function makeSections(params: MakeSectionsParams): BRDSections {
 | Prepared By | ${preparedBy} |
 | Organisation | ${org} |
 | Client | ${client} |
-| Client Reviewers | ${reviewers} |
+
+**Reviewers & Approvers:**
+| Name | Role | Date |
+|---|---|---|
+${reviewerRows}
 
 **Distribution List:** All named stakeholders and project governance board members.
 
@@ -148,8 +165,17 @@ ${org}, in partnership with ${client}, is undertaking the ${pName} initiative to
 **Business Context:**
 ${problem} The current operational model is characterised by ${currentProc.toLowerCase()}. These inefficiencies directly impact process throughput, data integrity, and stakeholder confidence in reporting outputs.
 
-**Strategic Intent:**
-This initiative is positioned as a strategic enabler to ${desired.toLowerCase()}. The solution leverages ${tech} within the ${techCategory} ecosystem, aligning with the organisation's broader digital transformation roadmap.
+**Strategic Objective:**
+${obj}
+
+**Problem Being Solved:**
+${problem}
+
+**Current State:**
+${currentProc}
+
+**Target Outcome:**
+${desired}
 
 **Expected Outcomes:**
 ${kpiList.map((k, i) => `${i + 1}. ${k}`).join("\n")}
@@ -176,6 +202,7 @@ The purpose of this document is to formally capture, structure, and validate the
 - Infrastructure procurement or hardware provisioning (unless specified)
 - Organisational change management beyond system training
 - Third-party vendor contract negotiations
+- Any requirements not explicitly stated in this document or agreed in writing post-review
 
 **Assumptions:**
 - Stakeholder availability will be maintained throughout the project lifecycle for workshops, reviews, and sign-offs
@@ -207,7 +234,52 @@ The target solution will be implemented on the ${tech} platform within the ${tec
 - External Partner / Vendor Systems (as applicable)
 
 **Technology Decisions:**
-The selection of ${tech} is predicated on its alignment with the organisation's technology standards, scalability requirements, and the availability of skilled resources within the delivery team.`,
+The selection of ${tech} is predicated on its alignment with the organisation's technology standards, scalability requirements, and the availability of skilled resources within the delivery team.
+
+**5. System Architecture Overview**
+The architecture of the ${pName} system is depicted in the following Mermaid diagram:
+
+\`\`\`mermaid
+graph TD
+    subgraph Presentation["Presentation Layer"]
+        UI["${tech} UI / Portal\\n(Web & Mobile)"]
+    end
+    subgraph Application["Application Layer"]
+        APP["${tech} Core Engine\\n(${pName})"]
+        WF["Workflow Engine\\n(Approval & Routing)"]
+        RULES["Rules Engine\\n(${obj})"]
+    end
+    subgraph Integration["Integration Layer"]
+        INT["API Gateway / Middleware"]
+        ERP["ERP / Finance Systems\\n(Master Data Sync)"]
+        IDP["Identity Provider\\n(SSO / MFA)"]
+        NOTIF["Notification Service\\n(Email & In-App)"]
+        DMS["Document Management\\n(Attachments)"]
+    end
+    subgraph Data["Data Layer"]
+        DB[("Operational\\nData Store")]
+        AUDIT[("Audit Log\\nRepository")]
+    end
+    subgraph Analytics["Analytics Layer"]
+        RPT["Reporting & Dashboards\\n(KPI Monitoring)"]
+    end
+    UI --> APP
+    APP --> WF
+    APP --> RULES
+    APP --> INT
+    APP --> DB
+    APP --> AUDIT
+    INT --> ERP
+    INT --> IDP
+    INT --> NOTIF
+    INT --> DMS
+    APP --> RPT
+    style UI fill:#00338D,color:#fff
+    style APP fill:#00338D,color:#fff
+    style DB fill:#001f5c,color:#fff
+    style AUDIT fill:#001f5c,color:#fff
+    style INT fill:#005CB9,color:#fff
+\`\`\``,
 
         businessProcessOverview:
 `**Process Domain:** ${pName}
@@ -231,7 +303,35 @@ ${desired} The redesigned process will leverage ${tech} to introduce automation 
 | 7 | Reporting | Management | Analytics Dashboard | KPI monitoring, SLA tracking, and exception reporting |
 
 **Process Metrics (Target):**
-${kpiList.map(k => `- ${k}`).join("\n")}`,
+${kpiList.map(k => `- ${k}`).join("\n")}
+
+**Process Flow**
+The following Mermaid diagram illustrates the comprehensive workflow of the ${pName} system:
+
+\`\`\`mermaid
+flowchart TD
+    START([Business User\\nInitiates Request]) --> FORM["Submit ${pName} Request\\nvia ${tech} Portal"]
+    FORM --> VALIDATE{"Automated Validation\\n& Business Rules"}
+    VALIDATE -->|"Fails Validation"| ERROR["Return Error\\nwith Guidance"]
+    ERROR --> FORM
+    VALIDATE -->|"Passes"| ENRICH["Data Enrichment\\n& Reference Check"]
+    ENRICH --> ROUTE{"Routing Engine\\nDetermine Approver"}
+    ROUTE --> NOTIFY["Notify Approver\\n(Email & In-App)"]
+    NOTIFY --> REVIEW{"Approver\\nDecision"}
+    REVIEW -->|"Approve"| EXECUTE["Execute Transaction\\non ${tech}"]
+    REVIEW -->|"Reject"| REJECT["Notify Initiator\\nwith Reason"]
+    REVIEW -->|"Request Info"| CLARIFY["Return to Initiator\\nfor Clarification"]
+    CLARIFY --> FORM
+    EXECUTE --> INTEGRATE["Sync with ERP\\n& Downstream Systems"]
+    INTEGRATE --> CONFIRM["Generate Confirmation\\n& Store Documents"]
+    CONFIRM --> AUDIT["Update Audit Log\\n& KPI Dashboard"]
+    AUDIT --> END([Process Complete])
+    style START fill:#00338D,color:#fff
+    style END fill:#00338D,color:#fff
+    style EXECUTE fill:#005CB9,color:#fff
+    style VALIDATE fill:#001f5c,color:#fff
+    style REVIEW fill:#001f5c,color:#fff
+\`\`\``,
 
         detailedBusinessProcess:
 `**Detailed Process Specification — ${pName}**
@@ -283,14 +383,18 @@ ${kpiList.map(k => `- ${k}`).join("\n")}`,
 | BR-005 | The system shall support role-based access control aligned with the organisation's security and compliance policies. | Critical | Regulatory and audit requirements mandate granular access controls. | RBAC model reviewed and approved by Information Security. |
 | BR-006 | The solution shall provide comprehensive audit trails for all transactions, approvals, and system changes. | High | Audit and compliance requirements demand full traceability. | All user actions logged with timestamp, user ID, and action detail. |
 | BR-007 | The system shall be scalable to accommodate growth in transaction volumes and user base without performance degradation. | Medium | Organisation growth trajectory requires the platform to scale without re-architecture. | System maintains performance SLAs at 2x current transaction volume. |
-| BR-008 | The solution shall support multi-language and multi-currency capabilities as required by the organisation's operating model. | Medium | Global operations require localisation support. | All supported locales validated during UAT. |`,
+| BR-008 | The solution shall support multi-language and multi-currency capabilities as required by the organisation's operating model. | Medium | Global operations require localisation support. | All supported locales validated during UAT. |
+| BR-009 | The solution shall provide a self-service configuration interface for business administrators to manage workflow rules, approval matrices, and notification templates without IT intervention. | High | Reduces time-to-change for business configuration from weeks to hours. | Admin portal allows rule changes; changes reflected in < 1 business day without code deployment. |
+| BR-010 | The solution shall comply with all applicable data privacy regulations (GDPR, PDPA, or equivalent) and organisational data governance policies. | Critical | Regulatory compliance is non-negotiable and subject to audit. | Data privacy impact assessment completed; all PII handling confirmed compliant prior to go-live. |
+| BR-011 | The solution shall support offline or degraded-mode operation for critical process steps in the event of network or system unavailability. | Medium | Business continuity requires minimal disruption during planned and unplanned outages. | Critical transactions can be initiated offline and synchronised upon reconnection. |
+| BR-012 | The solution shall provide end-users with contextual help, tooltips, and guided workflows to minimise training requirements and support calls. | Medium | High adoption requires intuitive UX; reduces support burden post go-live. | User satisfaction score ≥ 4/5 in post-UAT survey; support ticket volume < baseline by 30%. |`,
 
         functionalRequirements:
 `**Functional Requirements — ${pName}**
 
 | ID | Requirement | Module / Area | Testable Criteria |
 |---|---|---|---|
-| FR-001 | The system shall provide a structured input form with mandatory field validation, default values, and contextual help text for process initiation. | ${tech} — UI | Form submission blocked if mandatory fields are incomplete; error messages displayed inline. |
+| FR-001 | The ${pName} system shall provide a structured input form with mandatory field validation, default values, and contextual help text for process initiation. | ${tech} — UI | Form submission blocked if mandatory fields are incomplete; error messages displayed inline. |
 | FR-002 | The system shall implement configurable, multi-level approval workflows with support for parallel, sequential, and conditional routing. | Workflow Engine | Workflows execute correctly for all configured routing scenarios (verified via test cases). |
 | FR-003 | The system shall send real-time notifications (email and in-app) to relevant stakeholders upon status changes, approvals, rejections, and exceptions. | Notification Service | Notifications delivered within 60 seconds of triggering event. |
 | FR-004 | The system shall perform automated validation of submitted data against master data records, business rules, and configurable thresholds. | ${tech} — Rules Engine | Invalid submissions are rejected with specific, actionable error messages. |
@@ -304,21 +408,16 @@ ${kpiList.map(k => `- ${k}`).join("\n")}`,
         ricefwClassification:
 `**RICEFW Classification — ${pName}**
 
-| Type | ID | Description | Module | Complexity | Estimated Effort |
+| ID | Type | Object Name | Description | Priority | Complexity |
 |---|---|---|---|---|---|
-| Report | R-001 | Operational Status Dashboard — real-time KPI and exception monitoring | Analytics | Medium | 3–5 days |
-| Report | R-002 | Period-End Summary Report — consolidated transaction and financial reconciliation | Analytics | High | 5–8 days |
-| Report | R-003 | Audit Trail Report — comprehensive log of all user actions and system events | Audit Module | Medium | 3–5 days |
-| Interface | I-001 | Core ERP Integration — master data synchronisation and transactional posting | Integration | High | 8–12 days |
-| Interface | I-002 | Identity Provider Integration — SSO / MFA authentication flow | Security | Medium | 3–5 days |
-| Interface | I-003 | Notification Service Integration — email and in-app alert delivery | Notification | Low | 2–3 days |
-| Interface | I-004 | Document Management Integration — attachment storage and retrieval | DMS | Medium | 3–5 days |
-| Conversion | C-001 | Historical Data Migration — legacy data extraction, transformation, and loading | Data Migration | High | 10–15 days |
-| Enhancement | E-001 | Configurable Approval Workflow Engine — multi-level, rule-based routing | Workflow | High | 8–12 days |
-| Enhancement | E-002 | Bulk Upload Processing — structured file import with row-level validation | ${tech} | Medium | 5–7 days |
-| Form | F-001 | Process Initiation Form — structured input with validation and contextual help | ${tech} — UI | Medium | 3–5 days |
-| Form | F-002 | Exception Resolution Form — categorisation, assignment, and resolution tracking | ${tech} — UI | Medium | 3–5 days |
-| Workflow | W-001 | Multi-Level Approval Workflow — configurable routing with escalation and SLA monitoring | Workflow Engine | High | 8–12 days |
+| R-001 | Report | ${pName} Operations Report | Real-time operational dashboard for KPI monitoring and exception tracking | High | Medium |
+| R-002 | Report | ${pName} Audit Trail Report | Full audit log report for compliance and regulatory purposes | High | Low |
+| I-001 | Interface | ERP Integration — ${tech} | Bi-directional data sync between ${tech} and core ERP system | Critical | High |
+| I-002 | Interface | Notification Service Interface | Outbound notification trigger to email/in-app notification platform | High | Low |
+| C-001 | Conversion | Master Data Migration | One-time migration of existing master data records into ${tech} | Critical | High |
+| E-001 | Enhancement | Custom Validation Rules | Business-rule engine extensions specific to ${pName} process logic | High | Medium |
+| F-001 | Form | ${pName} Submission Form | Structured input form with validation, defaults, and contextual guidance | High | Low |
+| W-001 | Workflow | Approval Workflow — ${pName} | Multi-level configurable approval workflow with SLA enforcement | Critical | High |
 
 **Complexity Legend:** Low (< 3 days), Medium (3–7 days), High (8–15 days)`,
 
@@ -382,6 +481,16 @@ The solution adopts an API-first integration strategy, leveraging RESTful servic
 
         securityAndAuthorization:
 `**Security & Authorisation — ${pName}**
+
+**Role & Permission Matrix**
+
+| Role | Create | Read | Approve | Admin | Data Scope |
+|---|---|---|---|---|---|
+| Business User | ✓ | Own records | — | — | Own org unit |
+| Approver | — | ✓ | ✓ | — | Assigned scope |
+| Administrator | ✓ | ✓ | ✓ | ✓ | Full system |
+| Auditor / Read-Only | — | ✓ | — | — | All records (read) |
+| Integration Service Account | — | ✓ | — | — | API scope only |
 
 **1. Authentication**
 - Single Sign-On (SSO) via the organisation's identity provider (SAML 2.0 / OIDC)
@@ -449,6 +558,15 @@ ${kpiList.map((k, i) => `| KPI-${String(i + 1).padStart(3, "0")} | ${k} | System
 
         errorHandling:
 `**Error Handling & Exception Management — ${pName}**
+
+| Error Code | Category | Description | Severity | Resolution |
+|---|---|---|---|---|
+| ERR-001 | Validation | Mandatory field missing or invalid format | Low | Return inline error message; prevent submission |
+| ERR-002 | Business Rule | Submitted data violates configured business rule | Medium | Return specific rule violation message with remediation guidance |
+| ERR-003 | Integration | Downstream system unavailable or timeout | High | Retry with exponential back-off (3 attempts); alert support team |
+| ERR-004 | Authentication | User session expired or unauthorised access | Medium | Redirect to login; log security event |
+| ERR-005 | Data Integrity | Duplicate record or referential integrity violation | High | Reject transaction; notify initiator with conflict details |
+| ERR-006 | System | Unhandled exception or critical system error | Critical | Trigger incident alert; roll back transaction; preserve audit log |
 
 **1. Error Classification**
 
@@ -518,12 +636,11 @@ ${kpiList.map((k, i) => `| KPI-${String(i + 1).padStart(3, "0")} | ${k} | System
 
 | Phase | Scope | Owner | Entry Criteria | Exit Criteria |
 |---|---|---|---|---|
-| Unit Testing | Individual components and functions | Development Team | Code complete, code review passed | ≥ 90% code coverage, zero critical defects |
-| System Integration Testing (SIT) | End-to-end process flows, integrations | QA Team | Unit testing passed, integration environment available | All integration scenarios pass, zero P1/P2 defects |
-| User Acceptance Testing (UAT) | Business scenarios, usability, compliance | Business Users | SIT sign-off, UAT environment provisioned with representative data | All UAT scenarios pass, business sign-off obtained |
-| Regression Testing | Impact of changes on existing functionality | QA Team | Change deployed, automated test suite updated | Regression suite pass rate ≥ 98% |
-| Performance Testing | Load, stress, and endurance testing | Performance Engineer | Functional testing complete, performance environment provisioned | All performance targets met under expected and peak load |
-| Security Testing | Vulnerability assessment, penetration testing | Security Team | Application deployed to secure test environment | Zero critical/high vulnerabilities, SAST/DAST reports reviewed |
+| Unit Testing | Individual components and business rules | Dev Team | Code complete, peer reviewed | All unit tests pass, 0 critical defects |
+| System Integration Testing (SIT) | End-to-end flows, integration points | QA Lead | SIT environment ready, test data loaded | All SIT test cases pass, defects < severity 2 resolved |
+| User Acceptance Testing (UAT) | Business process validation | Business Owner | UAT environment ready, UAT scripts approved | Business sign-off, 100% critical test cases passed |
+| Performance Testing | Load, stress, and volume testing | QA Lead | Performance environment provisioned | System meets NFRs under 150% peak load |
+| Regression Testing | Full regression suite post-change | QA Lead | Any code change deployed | Zero regression defects in production-critical flows |
 
 **2. Test Data Management**
 - Test data to be anonymised from production or synthetically generated
@@ -587,41 +704,58 @@ ${kpiList.map((k, i) => `| KPI-${String(i + 1).padStart(3, "0")} | ${k} | System
 **Note:** Open points are tracked in the project RAID log and reviewed weekly during project governance meetings.`,
 
         appendices:
-`**Appendices — ${pName}**
-
-**Appendix A: Glossary of Terms**
+`**Glossary of Terms**
 
 | Term | Definition |
 |---|---|
-| BRD | Business Requirements Document — formal specification of business needs |
-| RBAC | Role-Based Access Control — security model assigning permissions by role |
-| SIT | System Integration Testing — validation of end-to-end process flows |
-| UAT | User Acceptance Testing — business validation of solution readiness |
-| RICEFW | Reports, Interfaces, Conversions, Enhancements, Forms, Workflows |
+| BRD | Business Requirements Document — formal document capturing all business needs for a solution |
+| SIT | System Integration Testing — testing of end-to-end flows across integrated systems |
+| UAT | User Acceptance Testing — business validation of the solution against agreed requirements |
+| RBAC | Role-Based Access Control — permission model based on organisational roles |
+| RICEFW | Reports, Interfaces, Conversions, Enhancements, Forms, Workflows — SAP development object classification |
 | SLA | Service Level Agreement — agreed performance and availability targets |
-| RTO | Recovery Time Objective — maximum acceptable downtime after failure |
-| RPO | Recovery Point Objective — maximum acceptable data loss window |
-| CI/CD | Continuous Integration / Continuous Deployment |
-| SSO | Single Sign-On — unified authentication across systems |
-| MFA | Multi-Factor Authentication — additional verification beyond password |
+| NFR | Non-Functional Requirement — system quality attribute (performance, security, scalability) |
+| API | Application Programming Interface — integration contract between systems |
+| KPI | Key Performance Indicator — measurable value demonstrating progress toward objectives |
+| PII | Personally Identifiable Information — data subject to privacy regulations |
+| Go-Live | The date on which the solution becomes operational in the production environment |
+| Hypercare | Post go-live intensive support period (typically 4–8 weeks) |
 
-**Appendix B: Referenced Documents**
-- Project Charter and Statement of Work
-- Solution Architecture Document (to be produced during design phase)
-- Technical Design Specification (to be produced during build phase)
-- Test Plan and Test Cases (to be produced during testing phase)
-- Training Plan and User Guides (to be produced during deployment phase)
-${uploadedFiles.length > 0 ? `- Source Materials: ${uploadedFiles.join(", ")}` : ""}
+**Acronyms**
 
-**Appendix C: Assumptions & Dependencies**
-- Stakeholder availability for workshops, reviews, and sign-off activities
-- Technical environment provisioned and accessible per project timeline
-- Third-party system teams available for integration development and testing
-- ${constraints}
+| Acronym | Full Form |
+|---|---|
+| PM | Program / Project Manager |
+| BA | Business Analyst |
+| SME | Subject Matter Expert |
+| SDLC | Software Development Life Cycle |
+| CR | Change Request |
+| RAID | Risks, Assumptions, Issues, Dependencies |
 
-**Appendix D: KPMG Quality Standards**
-This document has been prepared in accordance with KPMG's internal quality management framework and is subject to peer review prior to client distribution.`
+**Document References**
+- Project Charter (latest approved version)
+- As-Is Process Maps (Discovery Workshop outputs)
+- Data Dictionary and Field Mapping Specification
+- Security and Access Control Policy
+- Integration Architecture Specification
+- UAT Test Scripts and Traceability Matrix`
     };
+
+    // ── If a template was uploaded: only return the sections present in the template.
+    //    Empty string for all other sections — no auto-generation for missing ones. ──
+    if (templateSections) {
+        const emptyBase = Object.keys(generated).reduce((acc, k) => {
+            acc[k as keyof BRDSections] = "";
+            return acc;
+        }, {} as BRDSections);
+        const filled: Partial<BRDSections> = {};
+        for (const [k, v] of Object.entries(templateSections) as [keyof BRDSections, string][]) {
+            filled[k] = injectProjectData(v, input, { title: pName, version: ver }, customPlaceholders);
+        }
+        return { ...emptyBase, ...filled };
+    }
+
+    return generated;
 }
 
 // ─── Initial BRD Data ─────────────────────────────────────────────────────

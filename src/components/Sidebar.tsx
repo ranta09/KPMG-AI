@@ -21,13 +21,14 @@ import {
     Bot,
     FileText,
     Hammer,
+    HeartPulse,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const navItems = [
     { name: "BRD Management", path: "/dashboard/pm/brd", role: "program-manager", icon: <FileText size={20} /> },
     { name: "Business User", path: "/dashboard/business", role: "business-user", icon: <BarChart size={20} /> },
-    { name: "Agents", path: "/dashboard/developer/agents", role: "developer", icon: <Bot size={20} /> },
+    { name: "Production Support", path: "/dashboard/developer/support", role: "developer", icon: <HeartPulse size={20} /> },
 
     // Admin Routes
     { name: "Overview", path: "/dashboard/admin", role: "admin", icon: <LayoutDashboard size={20} /> },

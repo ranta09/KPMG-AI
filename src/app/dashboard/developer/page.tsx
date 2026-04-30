@@ -1,204 +1,190 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Bot, GitBranch, Activity, CheckCircle2, Clock, Zap, ArrowRight, Terminal, Shield, BarChart3, Layers } from "lucide-react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useBRDStore } from "@/lib/brdStore";
+import { useDeveloperStore } from "@/lib/developerStore";
+import { getLoggedInUser, logoutUser } from "@/lib/auth";
+import { getUsers } from "@/lib/usersStore";
+import { useRouter } from "next/navigation";
+import ActivityBar      from "@/components/developer/ActivityBar";
+import ExplorerPanel    from "@/components/developer/ExplorerPanel";
+import EditorPanel      from "@/components/developer/EditorPanel";
+import ChatPanel        from "@/components/developer/ChatPanel";
+import SupportPanel     from "@/components/developer/SupportPanel";
+import ExtensionsPanel  from "@/components/developer/ExtensionsPanel";
+import { ChevronDown, Sun, Moon, HeartPulse } from "lucide-react";
 
-const AGENT_STATUS = [
-    { name: "Code Builder", status: "Active", tasks: 3, color: "bg-emerald-500" },
-    { name: "Test Orchestrator", status: "Running", tasks: 1, color: "bg-blue-400" },
-    { name: "Solution Architect", status: "Idle", tasks: 0, color: "bg-slate-500" },
-    { name: "Deployment Manager", status: "Idle", tasks: 0, color: "bg-slate-500" },
-    { name: "Security Reviewer", status: "Active", tasks: 2, color: "bg-amber-400" },
-];
+type View = "pipeline" | "extensions" | "support";
 
-const RECENT_BUILDS = [
-    { id: "BUILD-042", project: "AP Automation BRD", type: "REST API", status: "Awaiting Review", time: "2m ago" },
-    { id: "BUILD-039", project: "S/4HANA Migration", type: "Integration Workflow", status: "Approved", time: "1h ago" },
-    { id: "BUILD-035", project: "Vendor Portal", type: "SAP Fiori App", status: "Deployed", time: "3h ago" },
-];
+export default function DeveloperPage() {
+    const { brds } = useBRDStore();
+    const store    = useDeveloperStore();
+    const router   = useRouter();
 
-const STATUS_MAP = {
-    "Awaiting Review": { text: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20" },
-    "Approved": { text: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
-    "Deployed": { text: "text-purple-400", bg: "bg-purple-400/10", border: "border-purple-400/20" },
-};
+    const [username,  setUsername]  = useState("");
+    const [userEmail, setUserEmail] = useState("");
+    const [brdOpen,   setBrdOpen]   = useState(false);
+    const [view,      setView]      = useState<View>("pipeline");
+    const [dark, setDark] = useState<boolean>(() => {
+        if (typeof window === "undefined") return false;
+        return localStorage.getItem("kpmg-dev-theme") === "dark";
+    });
 
-const SYSTEM_HEALTH = [
-    { label: "API Gateway", value: "99.98%", icon: Zap, ok: true },
-    { label: "Agent Pipeline", value: "Operational", icon: Activity, ok: true },
-    { label: "Build Queue", value: "6 jobs", icon: Layers, ok: true },
-    { label: "Security Scan", value: "2 alerts", icon: Shield, ok: false },
-];
+    const toggleTheme = () => setDark(v => {
+        const next = !v;
+        localStorage.setItem("kpmg-dev-theme", next ? "dark" : "light");
+        return next;
+    });
 
-export default function DeveloperDashboard() {
+    useEffect(() => {
+        const u = getLoggedInUser();
+        if (u) {
+            setUsername(u.username);
+            const found = getUsers().find(user => user.name === u.username);
+            if (found) setUserEmail(found.email);
+        }
+    }, []);
+
+    const assignedBrds = brds.filter(b =>
+        b.status === "Development" || (userEmail && b.assignedDeveloperEmail === userEmail)
+    );
+    const activeBrd = assignedBrds.find(b => b.id === store.activeBrdId) || assignedBrds[0] || null;
+
+    useEffect(() => {
+        if (activeBrd && !store.activeBrdId) store.setActiveBrd(activeBrd.id);
+    }, [activeBrd, store]);
+
+    const titleBg = dark ? "#3c3c3c" : "#f0f0f0";
+    const border  = dark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.09)";
+    const text    = dark ? "#d4d4d4" : "#1e1e1e";
+    const muted   = dark ? "#808080" : "#6b7280";
+    const inputBg = dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+    const hoverBg = dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)";
+    const activeBg = dark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.09)";
+    const dropBg  = dark ? "#252526" : "#ffffff";
+
+    const handleLogout = () => { logoutUser(); router.push("/"); };
+
     return (
-        <div className="py-6 max-w-7xl mx-auto">
-            {/* Header */}
-            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-slate-200 rounded-2xl p-8 mb-8 relative overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                <div className="absolute right-0 top-0 h-full w-72 opacity-30 pointer-events-none">
-                    <div className="grid grid-cols-8 gap-3 h-full p-6">
-                        {Array.from({ length: 64 }).map((_, i) => <div key={i} className="w-1 h-1 rounded-full bg-[#00A3E0]/40" />)}
+        <div className="fixed inset-0 flex flex-col overflow-hidden"
+            style={{ background: dark ? "#1e1e1e" : "#ffffff", fontFamily: "inherit" }}>
+
+            {/* ── Title bar ─────────────────────────────────────── */}
+            <div className="h-8 shrink-0 flex items-center justify-between px-3 select-none"
+                style={{ background: titleBg, borderBottom: `1px solid ${border}` }}>
+
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="w-4 h-4 rounded bg-[#00338D] flex items-center justify-center shrink-0">
+                            <span className="text-[7px] font-black text-white">K</span>
+                        </div>
+                        <span className="text-[11px] font-semibold" style={{ color: text }}>Developer</span>
+                    </div>
+
+                    <div className="w-px h-3 shrink-0" style={{ background: border }} />
+
+                    {/* BRD dropdown */}
+                    <div className="relative">
+                        <button onClick={() => setBrdOpen(v => !v)}
+                            className="flex items-center gap-1.5 px-2 h-5 rounded text-[11px] transition-all"
+                            style={{ background: inputBg, color: text }}>
+                            <span className="truncate max-w-[160px]">
+                                {activeBrd ? activeBrd.projectName : "No BRD assigned"}
+                            </span>
+                            {activeBrd && (
+                                <span className="font-mono text-[9px] shrink-0" style={{ color: muted }}>{activeBrd.id}</span>
+                            )}
+                            <ChevronDown size={9} style={{ color: muted }}
+                                className={`shrink-0 transition-transform ${brdOpen ? "rotate-180" : ""}`} />
+                        </button>
+
+                        <AnimatePresence>
+                            {brdOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.1 }}
+                                    className="absolute top-full mt-1 left-0 min-w-[220px] rounded-lg overflow-hidden shadow-xl z-50"
+                                    style={{ background: dropBg, border: `1px solid ${border}` }}>
+                                    {assignedBrds.length === 0
+                                        ? <p className="px-3 py-2.5 text-[11px]" style={{ color: muted }}>No BRDs in Development</p>
+                                        : assignedBrds.map(b => (
+                                            <button key={b.id}
+                                                onClick={() => { store.setActiveBrd(b.id); setBrdOpen(false); }}
+                                                className="w-full text-left px-3 py-2 transition-colors"
+                                                style={{ background: b.id === store.activeBrdId ? activeBg : "transparent" }}
+                                                onMouseEnter={e => (e.currentTarget.style.background = hoverBg)}
+                                                onMouseLeave={e => (e.currentTarget.style.background = b.id === store.activeBrdId ? activeBg : "transparent")}>
+                                                <p className="text-[11px] font-medium" style={{ color: text }}>{b.projectName}</p>
+                                                <p className="text-[10px] font-mono" style={{ color: muted }}>{b.id} · v{b.version}</p>
+                                            </button>
+                                        ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
-                {/* Terminal blink cursor */}
-                <div className="flex items-center gap-2 mb-3">
-                    <Terminal size={16} className="text-[#00338D]" />
-                    <span className="font-mono text-xs text-slate-500">developer@kpmg-sap ~</span>
-                    <span className="inline-block w-2 h-4 bg-[#00338D]/60 animate-pulse ml-1 align-middle rounded-sm" />
-                </div>
-                <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Developer Workspace</h1>
-                <p className="text-sm text-slate-600">AI Agent control centre · Build pipeline · System health</p>
 
-                <div className="flex flex-wrap gap-4 mt-6">
-                    <Link href="/dashboard/developer/agents">
-                        <motion.button whileHover={{ scale: 1.03 }}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-[#00338D] text-white hover:bg-[#001f5c] font-bold text-sm rounded-xl transition-all interactive shadow-md hover:shadow-lg">
-                            <Bot size={15} /> Open Agent Control Tower <ArrowRight size={14} />
-                        </motion.button>
-                    </Link>
-                    <motion.button whileHover={{ scale: 1.03 }}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-[#00338D] font-semibold text-sm rounded-xl transition-all interactive shadow-sm">
-                        <GitBranch size={15} /> View Build Queue
-                    </motion.button>
-                </div>
-            </motion.div>
-
-            {/* System Health Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                {SYSTEM_HEALTH.map((item, i) => {
-                    const Icon = item.icon;
-                    return (
-                        <motion.div key={item.label}
-                            initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-                            className="bg-white border-slate-200 rounded-2xl p-4 border shadow-sm">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                                    style={{ background: item.ok ? "rgba(74,222,128,0.10)" : "rgba(251,191,36,0.10)" }}>
-                                    <Icon size={15} className={item.ok ? "text-emerald-400" : "text-amber-400"} />
-                                </div>
-                                <div className={`w-2 h-2 rounded-full ${item.ok ? "bg-emerald-500" : "bg-amber-500"} shadow-[0_0_6px_rgba(74,222,128,0.6)]`} />
-                            </div>
-                            <p className="text-xs font-medium mb-1 text-slate-400">{item.label}</p>
-                            <p className="text-sm font-bold" style={{ color: item.ok ? "#4ade80" : "#fbbf24" }}>{item.value}</p>
-                        </motion.div>
-                    );
-                })}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Agent Status Panel */}
-                <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                    className="lg:col-span-2 bg-white border-slate-200 rounded-2xl overflow-hidden border shadow-sm">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50">
-                        <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                            <Bot size={15} className="text-[#00338D]" /> AI Agent Status
-                        </h2>
-                        <Link href="/dashboard/developer/agents"
-                            className="flex items-center gap-1 text-xs font-bold interactive transition-colors text-[#00338D] hover:text-[#00A3E0]">
-                            Manage Agents <ArrowRight size={12} />
-                        </Link>
-                    </div>
-                    <div className="divide-y divide-slate-100/10">
-                        {AGENT_STATUS.map((agent, i) => (
-                            <motion.div key={agent.name}
-                                initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + i * 0.05 }}
-                                className="flex items-center justify-between px-6 py-4 transition-all group interactive hover:bg-slate-50/50 hover:border-[#00338D]/30 border-b border-transparent last:border-0">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-2.5 h-2.5 rounded-full ${agent.color} ${agent.status !== "Idle" ? "shadow-[0_0_8px_currentColor]" : ""}`} />
-                                    <p className="text-sm font-semibold text-slate-800">{agent.name}</p>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    {agent.tasks > 0 && (
-                                        <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-[#00338D]/10 text-[#00338D] border border-[#00338D]/20">
-                                            {agent.tasks} task{agent.tasks > 1 ? "s" : ""}
-                                        </span>
-                                    )}
-                                    <span className={`text-xs font-bold ${agent.status === "Active" ? "text-emerald-500" : agent.status === "Running" ? "text-blue-500" : "text-slate-500"}`}>{agent.status}</span>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </motion.div>
-
-                {/* Right Column */}
-                <div className="space-y-5">
-                    {/* Build Pipeline Summary */}
-                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                        className="bg-white border-slate-200 rounded-2xl p-5 border shadow-sm">
-                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
-                            <BarChart3 size={14} className="text-[#00338D]" /> Build Pipeline
-                        </h3>
-                        {[
-                            { label: "Awaiting Review", count: 3, color: "bg-blue-500" },
-                            { label: "Approved", count: 5, color: "bg-emerald-500" },
-                            { label: "Deployed", count: 12, color: "bg-purple-500" },
-                        ].map(row => (
-                            <div key={row.label} className="flex items-center gap-3 mb-3 last:mb-0">
-                                <div className={`w-2 h-2 rounded-full ${row.color}`} />
-                                <p className="text-xs flex-1 text-slate-500 font-medium">{row.label}</p>
-                                <p className="text-sm font-bold text-slate-900">{row.count}</p>
-                            </div>
-                        ))}
-                    </motion.div>
-
-                    {/* Quick Stats */}
-                    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-                        className="bg-white border-slate-200 rounded-2xl p-5 border shadow-sm">
-                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4">
-                            <Activity size={14} className="text-[#00338D]" /> This Sprint
-                        </h3>
-                        {[
-                            { label: "Tests Passed", value: "94%", icon: CheckCircle2, ok: true },
-                            { label: "Avg Build Time", value: "4.2 min", icon: Clock, ok: true },
-                            { label: "Deployments", value: "7 this week", icon: Zap, ok: true },
-                        ].map(stat => {
-                            const Icon = stat.icon;
-                            return (
-                                <div key={stat.label} className="flex items-center gap-3 mb-3 last:mb-0">
-                                    <Icon size={13} className={stat.ok ? "text-emerald-500" : "text-amber-500"} />
-                                    <p className="text-xs flex-1 text-slate-500 font-medium">{stat.label}</p>
-                                    <p className="text-xs font-bold text-slate-900">{stat.value}</p>
-                                </div>
-                            );
-                        })}
-                    </motion.div>
+                {/* Right: support + theme */}
+                <div className="flex items-center gap-2 shrink-0">
+                    <button
+                        onClick={() => setView(v => v === "support" ? "pipeline" : "support")}
+                        className="flex items-center gap-1 px-2 h-5 rounded text-[10px] transition-colors"
+                        style={{
+                            color: view === "support" ? "#f87171" : muted,
+                            background: view === "support" ? "rgba(248,113,113,0.12)" : "transparent",
+                        }}>
+                        <HeartPulse size={10} /> Support
+                    </button>
+                    <button onClick={toggleTheme}
+                        className="w-5 h-5 rounded flex items-center justify-center hover:opacity-80 transition-opacity"
+                        style={{ color: muted }}>
+                        {dark ? <Sun size={11} /> : <Moon size={11} />}
+                    </button>
                 </div>
             </div>
 
-            {/* Recent Builds */}
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-                className="mt-6 bg-white border-slate-200 rounded-2xl overflow-hidden border shadow-sm">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50">
-                    <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm">
-                        <GitBranch size={15} className="text-[#00338D]" /> Recent Builds Awaiting Developer Review
-                    </h2>
+            {/* ── IDE body ─────────────────────────────────────── */}
+            <div className="flex flex-1 overflow-hidden">
+
+                {/* Activity bar */}
+                <ActivityBar
+                    dark={dark}
+                    activeBrd={activeBrd}
+                    view={view === "support" ? "pipeline" : view as "pipeline" | "extensions"}
+                    onViewChange={v => setView(v)}
+                    onLogout={handleLogout}
+                />
+
+                {/* Explorer — hidden when showing extensions */}
+                {view !== "extensions" && view !== "support" && (
+                    <ExplorerPanel dark={dark} activeBrd={activeBrd} />
+                )}
+
+                {/* Main content */}
+                <div className="flex flex-1 overflow-hidden">
+                    {view === "support" ? (
+                        <SupportPanel dark={dark} />
+                    ) : view === "extensions" ? (
+                        <ExtensionsPanel dark={dark} />
+                    ) : activeBrd ? (
+                        <>
+                            <EditorPanel dark={dark} brd={activeBrd} />
+                            <ChatPanel
+                                key={`${activeBrd.id}-${store.activeAgent}`}
+                                dark={dark}
+                                brd={activeBrd}
+                            />
+                        </>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center gap-2"
+                            style={{ color: dark ? "#808080" : "#6b7280", background: dark ? "#1e1e1e" : "#ffffff" }}>
+                            <p className="text-sm font-medium">No BRD in Development</p>
+                            <p className="text-xs opacity-60">Ask your Program Manager to assign a BRD</p>
+                        </div>
+                    )}
                 </div>
-                <div className="divide-y divide-slate-100/10">
-                    {RECENT_BUILDS.map((build, i) => {
-                        const sc = STATUS_MAP[build.status as keyof typeof STATUS_MAP];
-                        return (
-                            <motion.div key={build.id}
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 + i * 0.06 }}
-                                className="flex items-center justify-between px-6 py-4 transition-all interactive group hover:bg-slate-50/50 hover:border-[#00338D]/30 border-b border-transparent last:border-0">
-                                <div className="flex items-center gap-4">
-                                    <span className="font-mono text-xs font-bold text-[#00338D]">{build.id}</span>
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-800">{build.project}</p>
-                                        <p className="text-xs mt-0.5 text-slate-500">{build.type}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${sc.text} ${sc.bg} ${sc.border}`}>{build.status}</span>
-                                    <span className="text-xs text-slate-400 font-medium">{build.time}</span>
-                                    <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#00338D]" />
-                                </div>
-                            </motion.div>
-                        );
-                    })}
-                </div>
-            </motion.div>
+            </div>
         </div>
     );
 }

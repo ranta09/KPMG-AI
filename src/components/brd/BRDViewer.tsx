@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, History, FileText, Download, Edit3, Check, X, Lock, Send, RotateCcw, Clock, Code, HardDrive, File as FileIcon, ChevronDown, ChevronUp, Play, Plus, UserPlus, Sparkles, Trash2, Settings, Eye, EyeOff } from "lucide-react";
 import { BRDRecord, BRDSections, BRDVersion, useBRDStore } from "@/lib/brdStore";
@@ -73,6 +73,26 @@ function getTimelineIndex(status: string) {
     return 0;
 }
 
+// ─── Mermaid Diagram Renderer ─────────────────────────────────────────────
+function MermaidChart({ chart }: { chart: string }) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        let cancelled = false;
+        import("mermaid").then(m => {
+            if (cancelled || !ref.current) return;
+            m.default.initialize({ startOnLoad: false, theme: "base", themeVariables: { primaryColor: "#00338D", primaryTextColor: "#fff", lineColor: "#00338D", fontSize: "13px" } });
+            const id = "mc" + Math.random().toString(36).slice(2);
+            m.default.render(id, chart).then(({ svg }) => {
+                if (ref.current && !cancelled) ref.current.innerHTML = svg;
+            }).catch(() => {
+                if (ref.current && !cancelled) ref.current.innerHTML = `<pre class="text-xs text-slate-500 p-2">${chart}</pre>`;
+            });
+        });
+        return () => { cancelled = true; };
+    }, [chart]);
+    return <div ref={ref} className="my-4 overflow-x-auto bg-white rounded-xl border border-slate-200 p-4 shadow-sm" />;
+}
+
 // ─── Rich Markdown Renderer ──────────────────────────────────────────────
 function RichContent({ text }: { text: string }) {
     const lines = text.split("\n");
@@ -82,6 +102,26 @@ function RichContent({ text }: { text: string }) {
 
     while (i < lines.length) {
         const line = lines[i];
+
+        // ── Mermaid diagram block ────────────────────────────────────────────
+        if (line.trim().startsWith("```mermaid")) {
+            i++;
+            const chartLines: string[] = [];
+            while (i < lines.length && !lines[i].trim().startsWith("```")) {
+                chartLines.push(lines[i]);
+                i++;
+            }
+            i++; // skip closing ```
+            elements.push(<MermaidChart key={key++} chart={chartLines.join("\n")} />);
+            continue;
+        }
+        // ── Generic code fence — skip ────────────────────────────────────────
+        if (line.trim().startsWith("```")) {
+            i++;
+            while (i < lines.length && !lines[i].trim().startsWith("```")) i++;
+            i++;
+            continue;
+        }
 
         // ── Markdown Table ───────────────────────────────────────────────
         if (line.trim().startsWith("|")) {
@@ -137,6 +177,22 @@ function RichContent({ text }: { text: string }) {
             );
             i++;
             continue;
+        }
+
+        // ### subheading
+        if (/^###\s/.test(line.trim())) {
+            elements.push(<h5 key={key++} className="text-[12px] font-bold text-slate-600 uppercase tracking-wider mt-4 mb-1">{line.replace(/^###\s*/, "")}</h5>);
+            i++; continue;
+        }
+        // ## heading
+        if (/^##\s/.test(line.trim())) {
+            elements.push(<h4 key={key++} className="text-[13px] font-bold text-[#00338D] mt-5 mb-2 tracking-tight border-b border-slate-100 pb-1">{line.replace(/^##\s*/, "")}</h4>);
+            i++; continue;
+        }
+        // --- divider
+        if (/^---+$/.test(line.trim())) {
+            elements.push(<hr key={key++} className="my-3 border-slate-200" />);
+            i++; continue;
         }
 
         // ── Bullet point (- or •) ───────────────────────────────────────
@@ -222,8 +278,8 @@ function InlineMarkdown({ text }: { text: string }) {
 }
 
 // ─── Editable Section Component ──────────────────────────────────────────
-function EditableSection({ value, isLocked, sectionKey, onSave, onAddComment }: {
-    value: string; isLocked: boolean; sectionKey: string; onSave: (v: string) => void; onAddComment?: (section: string) => void;
+function EditableSection({ value, isLocked, sectionKey, onSave, onAddComment, color }: {
+    value: string; isLocked: boolean; sectionKey: string; onSave: (v: string) => void; onAddComment?: (section: string) => void; color?: string;
 }) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(value);
@@ -252,8 +308,14 @@ function EditableSection({ value, isLocked, sectionKey, onSave, onAddComment }: 
                 </div>
             ) : (
                 <div className="relative">
-                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm print-content">
-                        <RichContent text={value} />
+                    <div className={`bg-white p-5 rounded-xl border border-slate-200 shadow-sm print-content border-l-4 ${color || "border-l-[#00338D]"}`}>
+                        {value.trim() === "" ? (
+                            <div className="py-8 text-center">
+                                <p className="text-slate-300 text-xs font-medium">No content — section not present in uploaded template</p>
+                            </div>
+                        ) : (
+                            <RichContent text={value} />
+                        )}
                     </div>
                     <div className="absolute top-3 right-3 flex gap-2 no-print opacity-0 group-hover:opacity-100 transition-all">
                         {onAddComment && (
@@ -284,7 +346,16 @@ function EditableSection({ value, isLocked, sectionKey, onSave, onAddComment }: 
 export default function BRDViewer({ brd, onStatusChange, onAddComment, onSectionEdit, onRequestMajorChange }: BRDViewerProps) {
     const [tab, setTab] = useState<Tab>("document");
     const [commentInput, setCommentInput] = useState("");
-    const [sections, setSections] = useState<BRDSections>(brd.sections);
+    const [sections, setSections] = useState<BRDSections>(() => {
+        const s = { ...brd.sections };
+        if (!s.businessProcessOverview?.includes("```mermaid")) {
+            s.businessProcessOverview = (s.businessProcessOverview || "") + `\n\n**Process Flow**\nThe following Mermaid diagram illustrates the comprehensive workflow:\n\n\`\`\`mermaid\nflowchart TD\n    START([Business User]) --> FORM[Submit Request]\n    FORM --> VALIDATE{Validation}\n    VALIDATE -->|Fails| ERROR[Return Error]\n    ERROR --> FORM\n    VALIDATE -->|Passes| ROUTE{Route to Approver}\n    ROUTE --> REVIEW{Approval Decision}\n    REVIEW -->|Approve| EXECUTE[Execute & Integrate]\n    REVIEW -->|Reject| REJECT[Notify Initiator]\n    EXECUTE --> AUDIT([Complete & Audit])\n    style START fill:#00338D,color:#fff\n    style AUDIT fill:#00338D,color:#fff\n    style EXECUTE fill:#005CB9,color:#fff\n\`\`\``;
+        }
+        if (!s.systemLandscape?.includes("```mermaid")) {
+            s.systemLandscape = (s.systemLandscape || "") + `\n\n**5. System Architecture Overview**\nThe architecture of the system is depicted in the following Mermaid diagram:\n\n\`\`\`mermaid\ngraph TD\n    UI[UI / Portal] --> APP[Core Engine]\n    APP --> WF[Workflow Engine]\n    APP --> INT[Integration Layer]\n    APP --> DB[(Data Store)]\n    INT --> ERP[ERP Systems]\n    INT --> IDP[Identity Provider]\n    INT --> NOTIF[Notification Service]\n    APP --> RPT[Reporting & Dashboards]\n    style UI fill:#00338D,color:#fff\n    style APP fill:#00338D,color:#fff\n    style DB fill:#001f5c,color:#fff\n\`\`\``;
+        }
+        return s;
+    });
     const [animKey, setAnimKey] = useState(0);
     const [showRevisionModal, setShowRevisionModal] = useState(false);
     const [revisionMode, setRevisionMode] = useState<"regenerate" | "major">("major");
@@ -481,16 +552,10 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
                         )}
                         <div className="flex items-center gap-2 ml-auto">
                             <button
-                                onClick={() => exportBRDToWord(brd)}
+                                onClick={() => exportBRDToWord({ ...brd, sections })}
                                 className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-[#00338D]/30 text-[#00338D] hover:bg-[#00338D]/5 rounded-xl transition-all interactive"
                             >
                                 <FileIcon size={13} /> Export Word
-                            </button>
-                            <button
-                                onClick={handleExportPDF}
-                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition-all interactive"
-                            >
-                                <Download size={13} /> Export PDF
                             </button>
                         </div>
                     </div>
@@ -651,22 +716,6 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
                                 </div>
                             </div>
 
-                            {/* User Input Section (Original Requirement) */}
-                            <div className="bg-slate-50/50 border border-dashed border-slate-200 rounded-xl p-5 mb-8 no-print">
-                                <h3 className="text-[10px] uppercase font-bold text-slate-400 mb-4 flex items-center gap-2">
-                                    <Sparkles size={14} className="text-amber-500" /> AI Source Analysis
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Build Type Mapping</p>
-                                        <p className="text-sm font-semibold text-slate-700">{brd.input.sapModule || "N/A"}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Raw Requirement</p>
-                                        <p className="text-xs text-slate-600 leading-relaxed bg-white p-3 rounded-lg border border-slate-100 italic">"{brd.input.problemStatement}"</p>
-                                    </div>
-                                </div>
-                            </div>
 
                             {/* Generated Sections */}
                             <div className="space-y-6">
@@ -714,7 +763,18 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
                                         </div>
                                     )}
                                 </h3>
-                                {SECTIONS.filter(s => !brd.hiddenSections?.includes(s.key)).map((sec, i) => (
+
+
+                                {SECTIONS.filter(s => !brd.hiddenSections?.includes(s.key)).map((sec, i) => {
+                                    const sectionIndex = SECTIONS.findIndex(s => s.key === sec.key);
+                                    const sectionColor =
+                                        sectionIndex <= 1 ? "border-l-[#00338D]" :
+                                        sectionIndex <= 5 ? "border-l-indigo-400" :
+                                        sectionIndex <= 8 ? "border-l-emerald-500" :
+                                        sectionIndex <= 11 ? "border-l-violet-400" :
+                                        sectionIndex <= 14 ? "border-l-orange-400" :
+                                        "border-l-slate-400";
+                                    return (
                                     <motion.div
                                         key={sec.key}
                                         initial={{ opacity: 0, y: 12 }}
@@ -722,7 +782,6 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
                                         transition={{ delay: i * 0.04 }}
                                     >
                                         <div className="flex items-center gap-2 mb-3 print-section-title">
-                                            <span className="text-lg no-print">{sec.icon}</span>
                                             <h3 className="font-bold text-slate-900 text-sm tracking-tight">{sec.label}</h3>
                                             <div className="flex-1 h-px bg-slate-100 ml-2 no-print" />
                                             {!isReadOnly && (
@@ -736,17 +795,19 @@ export default function BRDViewer({ brd, onStatusChange, onAddComment, onSection
                                             )}
                                         </div>
                                         <EditableSection
-                                            value={sections[sec.key]}
+                                            value={(sections[sec.key] || "").replace(/^#+\s[^\n]*\n?/, "").replace(/^\*\*[^*]+\*\*\n?/, "")}
                                             isLocked={isReadOnly}
                                             sectionKey={sec.key}
-                                            onSave={v => handleSectionSave(sec.key, v)}
+                                            color={sectionColor}
+                                            onSave={v => handleSectionSave(sec.key, v.replace(/^#+\s.*\n?/, "").replace(/^\*\*[^*]+\*\*\n?/, ""))}
                                             onAddComment={(!isReadOnly || brd.status === "BRD Review") ? (key) => {
                                                 setTab("comments");
                                                 setCommentInput(`Regarding ${sec.label}: `);
                                             } : undefined}
                                         />
                                     </motion.div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </motion.div>
                     )}

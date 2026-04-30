@@ -18,6 +18,93 @@ import {
     TableOfContents,
     StyleLevel,
 } from "docx";
+
+// Minimal 1×1 white PNG — used as fallback for SVG ImageRun in docx v9
+// (modern Word renders the SVG; old Word shows this placeholder)
+const FALLBACK_PNG = Uint8Array.from(
+    atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="),
+    c => c.charCodeAt(0)
+);
+
+async function mermaidToSvgBytes(chart: string): Promise<{ svg: Uint8Array; png: Uint8Array } | null> {
+    try {
+        const m = (await import("mermaid")).default;
+        // Use light boxes + dark text so Word renders correctly even without CSS class support
+        m.initialize({
+            startOnLoad: false,
+            theme: "base",
+            themeVariables: {
+                primaryColor: "#003087",          // KPMG blue node fill
+                primaryTextColor: "#ffffff",       // white label text
+                primaryBorderColor: "#ffffff",
+                lineColor: "#003087",
+                secondaryColor: "#e8f0ff",
+                tertiaryColor: "#f0f4ff",
+                fontSize: "15px",
+                background: "#ffffff",
+                mainBkg: "#003087",
+                nodeBorder: "#ffffff",
+                clusterBkg: "#e8eeff",
+                clusterBorder: "#003087",
+                edgeLabelBackground: "#ffffff",
+                labelColor: "#003087",
+            },
+        });
+        const id = "wd" + Math.random().toString(36).slice(2);
+        const { svg } = await m.render(id, chart);
+
+        // Post-process SVG for Word compatibility
+        // Word ignores <style> blocks, so we must inline critical styles
+        let processed = svg;
+
+        // 1. Extract CSS rules from embedded <style> block
+        const styleMatch = processed.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+        const cssText = styleMatch ? styleMatch[1] : "";
+
+        // 2. Build a simple class→fill map from the CSS
+        const classFillMap: Record<string, string> = {};
+        const cssRules = cssText.matchAll(/\.([^\s{,]+)[^{]*\{([^}]*)\}/g);
+        for (const rule of cssRules) {
+            const cls = rule[1];
+            const fillMatch = rule[2].match(/fill\s*:\s*([^;!]+)/);
+            if (fillMatch) classFillMap[cls] = fillMatch[1].trim();
+        }
+
+        // 3. Inline fill on rect/circle/polygon elements that use class-based fills
+        processed = processed.replace(/<(rect|circle|polygon|path|ellipse)\b([^>]*?)>/g, (_m, tag, attrs) => {
+            const clsMatch = attrs.match(/class="([^"]*)"/);
+            if (!clsMatch) return _m;
+            const classes = clsMatch[1].split(/\s+/);
+            for (const cls of classes) {
+                if (classFillMap[cls] && !attrs.includes("fill=")) {
+                    return `<${tag}${attrs} fill="${classFillMap[cls]}">`;
+                }
+            }
+            return _m;
+        });
+
+        // 4. Inline fill on <text> elements
+        processed = processed.replace(/<text\b([^>]*?)>/g, (_m, attrs) => {
+            if (attrs.includes("fill=")) return _m;
+            const clsMatch = attrs.match(/class="([^"]*)"/);
+            if (clsMatch) {
+                const classes = clsMatch[1].split(/\s+/);
+                for (const cls of classes) {
+                    if (classFillMap[cls]) return `<text${attrs} fill="${classFillMap[cls]}">`;
+                }
+                // node labels default to white; edge labels to dark
+                const isEdge = classes.some(c => c.includes("edge") || c.includes("label"));
+                return `<text${attrs} fill="${isEdge ? "#003087" : "#ffffff"}">`;
+            }
+            return `<text${attrs} fill="#003087">`;
+        });
+
+        // 5. Inject white background rect immediately after opening <svg> tag
+        processed = processed.replace(/(<svg\b[^>]*>)/, '$1<rect width="100%" height="100%" fill="#ffffff"/>');
+
+        return { svg: new TextEncoder().encode(processed), png: FALLBACK_PNG };
+    } catch { return null; }
+}
 import { saveAs } from "file-saver";
 import { BRDRecord, BRDSections } from "./brdStore";
 
@@ -101,141 +188,143 @@ function createTableFromData(rows: string[][]): Table {
     });
 }
 
-function parseSectionContent(content: string): (Paragraph | Table)[] {
-    const elements: (Paragraph | Table)[] = [];
-    const lines = content.split("\n");
+function makeRuns(line: string): TextRun[] {
+    if (!line.includes("**") && !line.includes("*")) {
+        return [new TextRun({ text: line, color: KPMG_DARK, size: 20, font: "Calibri" })];
+    }
+    const runs: TextRun[] = [];
+    const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/);
+    for (const part of parts) {
+        if (part.startsWith("**") && part.endsWith("**")) {
+            runs.push(new TextRun({ text: part.slice(2, -2), bold: true, color: KPMG_DARK, size: 20, font: "Calibri" }));
+        } else if (part.startsWith("*") && part.endsWith("*")) {
+            runs.push(new TextRun({ text: part.slice(1, -1), italics: true, color: KPMG_GREY, size: 20, font: "Calibri" }));
+        } else {
+            runs.push(new TextRun({ text: part, color: KPMG_DARK, size: 20, font: "Calibri" }));
+        }
+    }
+    return runs;
+}
 
+async function parseSectionContent(content: string): Promise<(Paragraph | Table)[]> {
+    const elements: (Paragraph | Table)[] = [];
+    // Strip leading heading (same as BRDViewer)
+    const text = content.replace(/^#+\s[^\n]*\n?/, "").replace(/^\*\*[^*]+\*\*\n?/, "");
+    const lines = text.split("\n");
     let i = 0;
+
     while (i < lines.length) {
         const line = lines[i];
+        const trimmed = line.trim();
 
-        // Detect start of a markdown table (line starts with |)
-        if (line.trim().startsWith("|")) {
-            const tableLines: string[] = [];
-            while (i < lines.length && lines[i].trim().startsWith("|")) {
-                tableLines.push(lines[i]);
-                i++;
+        // ── Mermaid block → render as PNG image ─────────────────────────
+        if (trimmed.startsWith("```mermaid")) {
+            i++;
+            const chartLines: string[] = [];
+            while (i < lines.length && !lines[i].trim().startsWith("```")) { chartLines.push(lines[i]); i++; }
+            i++;
+            const result = await mermaidToSvgBytes(chartLines.join("\n"));
+            if (result) {
+                elements.push(new Paragraph({
+                    children: [new ImageRun({
+                        type: "svg",
+                        data: result.svg,
+                        transformation: { width: 620, height: 360 },
+                        fallback: { type: "png", data: result.png },
+                    })],
+                    spacing: { before: 160, after: 160 },
+                }));
+            } else {
+                elements.push(new Paragraph({ children: [new TextRun({ text: "[Diagram]", italics: true, color: KPMG_GREY, size: 18, font: "Calibri" })], spacing: { before: 80, after: 80 } }));
             }
-            const tableText = tableLines.join("\n");
-            const parsed = parseMarkdownTable(tableText);
-            if (parsed && parsed.length > 0) {
+            continue;
+        }
+
+        // ── Generic code fence — skip ────────────────────────────────────
+        if (trimmed.startsWith("```")) {
+            i++;
+            while (i < lines.length && !lines[i].trim().startsWith("```")) i++;
+            i++;
+            continue;
+        }
+
+        // ── Markdown table ───────────────────────────────────────────────
+        if (trimmed.startsWith("|")) {
+            const tableLines: string[] = [];
+            while (i < lines.length && lines[i].trim().startsWith("|")) { tableLines.push(lines[i]); i++; }
+            const parsed = parseMarkdownTable(tableLines.join("\n"));
+            if (parsed?.length) {
                 elements.push(createTableFromData(parsed));
                 elements.push(new Paragraph({ spacing: { after: 120 } }));
             }
             continue;
         }
 
-        // Bold heading lines: **Text**
-        if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
-            const text = line.trim().replace(/\*\*/g, "");
-            elements.push(
-                new Paragraph({
-                    children: [
-                        new TextRun({
-                            text,
-                            bold: true,
-                            color: KPMG_BLUE,
-                            size: 22,
-                            font: "Calibri",
-                        }),
-                    ],
-                    spacing: { before: 200, after: 80 },
-                })
-            );
-            i++;
-            continue;
+        // ── ## heading ───────────────────────────────────────────────────
+        if (/^##\s/.test(trimmed)) {
+            elements.push(new Paragraph({
+                children: [new TextRun({ text: trimmed.replace(/^##\s*/, ""), bold: true, color: KPMG_BLUE, size: 22, font: "Calibri" })],
+                spacing: { before: 240, after: 80 },
+            }));
+            i++; continue;
         }
 
-        // Lines containing **bold** segments mixed with normal text
-        if (line.includes("**")) {
-            const runs: TextRun[] = [];
-            const parts = line.split(/(\*\*[^*]+\*\*)/);
-            for (const part of parts) {
-                if (part.startsWith("**") && part.endsWith("**")) {
-                    runs.push(new TextRun({
-                        text: part.replace(/\*\*/g, ""),
-                        bold: true,
-                        color: KPMG_DARK,
-                        size: 20,
-                        font: "Calibri",
-                    }));
-                } else {
-                    runs.push(new TextRun({
-                        text: part,
-                        color: KPMG_GREY,
-                        size: 20,
-                        font: "Calibri",
-                    }));
-                }
-            }
-            elements.push(new Paragraph({ children: runs, spacing: { before: 60, after: 60 } }));
-            i++;
-            continue;
+        // ── ### subheading ───────────────────────────────────────────────
+        if (/^###\s/.test(trimmed)) {
+            elements.push(new Paragraph({
+                children: [new TextRun({ text: trimmed.replace(/^###\s*/, ""), bold: true, color: KPMG_GREY, size: 20, font: "Calibri" })],
+                spacing: { before: 160, after: 60 },
+            }));
+            i++; continue;
         }
 
-        // Bullet points (- item)
+        // ── **Bold heading** (full line) ─────────────────────────────────
+        if (/^\*\*[^*]+\*\*$/.test(trimmed)) {
+            elements.push(new Paragraph({
+                children: [new TextRun({ text: trimmed.replace(/\*\*/g, ""), bold: true, color: KPMG_BLUE, size: 22, font: "Calibri" })],
+                spacing: { before: 200, after: 80 },
+            }));
+            i++; continue;
+        }
+
+        // ── Horizontal rule ──────────────────────────────────────────────
+        if (/^---+$/.test(trimmed)) {
+            elements.push(new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "E2E8F0" } }, spacing: { before: 80, after: 80 } }));
+            i++; continue;
+        }
+
+        // ── Bullet point ─────────────────────────────────────────────────
         if (/^\s*[-•]\s/.test(line)) {
-            const text = line.replace(/^\s*[-•]\s*/, "");
-            elements.push(
-                new Paragraph({
-                    children: [
-                        new TextRun({
-                            text: `  \u2022  ${text}`,
-                            color: KPMG_DARK,
-                            size: 20,
-                            font: "Calibri",
-                        }),
-                    ],
-                    spacing: { before: 30, after: 30 },
-                    indent: { left: 360 },
-                })
-            );
-            i++;
-            continue;
+            const btext = line.replace(/^\s*[-•]\s*/, "");
+            elements.push(new Paragraph({
+                children: [new TextRun({ text: `\u2022  `, bold: true, color: KPMG_BLUE, size: 20, font: "Calibri" }), ...makeRuns(btext)],
+                spacing: { before: 30, after: 30 },
+                indent: { left: 360 },
+            }));
+            i++; continue;
         }
 
-        // Numbered items (1. item, BR-001:, FR-001:, etc.)
-        if (/^\s*(\d+\.|[A-Z]{2,}-\d+[:\s])/.test(line)) {
-            const text = line.trim();
-            elements.push(
-                new Paragraph({
-                    children: [
-                        new TextRun({
-                            text,
-                            color: KPMG_DARK,
-                            size: 20,
-                            font: "Calibri",
-                        }),
-                    ],
+        // ── Numbered list ────────────────────────────────────────────────
+        if (/^\s*\d+\.\s/.test(line)) {
+            const match = line.match(/^\s*(\d+\.)\s*(.*)/);
+            if (match) {
+                elements.push(new Paragraph({
+                    children: [new TextRun({ text: `${match[1]}  `, bold: true, color: KPMG_BLUE, size: 20, font: "Calibri" }), ...makeRuns(match[2])],
                     spacing: { before: 40, after: 40 },
-                    indent: { left: 240 },
-                })
-            );
-            i++;
-            continue;
+                    indent: { left: 360 },
+                }));
+            }
+            i++; continue;
         }
 
-        // Empty lines
-        if (line.trim() === "") {
+        // ── Empty line ───────────────────────────────────────────────────
+        if (trimmed === "") {
             elements.push(new Paragraph({ spacing: { before: 60, after: 60 } }));
-            i++;
-            continue;
+            i++; continue;
         }
 
-        // Regular paragraph
-        elements.push(
-            new Paragraph({
-                children: [
-                    new TextRun({
-                        text: line,
-                        color: KPMG_DARK,
-                        size: 20,
-                        font: "Calibri",
-                    }),
-                ],
-                spacing: { before: 40, after: 40 },
-            })
-        );
+        // ── Regular paragraph with inline bold/italic ────────────────────
+        elements.push(new Paragraph({ children: makeRuns(line), spacing: { before: 40, after: 40 } }));
         i++;
     }
 
@@ -475,7 +564,7 @@ export async function exportBRDToWord(brd: BRDRecord): Promise<void> {
         );
 
         // Parse and add content
-        const parsed = parseSectionContent(sectionContent);
+        const parsed = await parseSectionContent(sectionContent);
         contentChildren.push(...parsed);
 
         // Section spacing
