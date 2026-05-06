@@ -1,9 +1,8 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export async function POST(req: NextRequest) {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const { brdSections, artifactType, projectName } = await req.json();
 
     const prompts: Record<string, string> = {

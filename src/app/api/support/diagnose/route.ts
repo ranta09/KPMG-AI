@@ -1,9 +1,8 @@
 import { OpenAI } from "openai";
 import { NextRequest } from "next/server";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export async function POST(req: NextRequest) {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const { service, errorCode, message, stackTrace } = await req.json();
 
     const stream = await openai.chat.completions.create({

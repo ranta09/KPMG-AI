@@ -1,8 +1,6 @@
 import { OpenAI } from "openai";
 import { NextRequest } from "next/server";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const SYSTEM_PROMPTS: Record<string, string> = {
     architecture: `You are a senior Solution Architect at KPMG. Given a BRD, produce:
 1. **Tech Stack** — table of layers (Frontend/Backend/DB/Integration/Infra) with chosen tech + rationale
@@ -56,6 +54,7 @@ All config must reference the actual project and tech stack from the BRD.`,
 };
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ agent: string }> }) {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const { agent } = await params;
     const { brdContext, priorOutputs, customInstructions, feedback } = await req.json();
 

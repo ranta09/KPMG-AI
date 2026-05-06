@@ -1,8 +1,6 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 // Known BRDSections keys so we can map template headings back to them
 const KNOWN_SECTION_KEYS = [
     "documentControl", "executiveSummary", "purposeAndScope", "systemLandscape",
@@ -14,6 +12,7 @@ const KNOWN_SECTION_KEYS = [
 ];
 
 export async function POST(req: NextRequest) {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const { context, conversationHistory, rawMarkdown, templateSections, templateSectionKeys, useTemplateOnly } = await req.json();
 
     const conversationSummary = conversationHistory
